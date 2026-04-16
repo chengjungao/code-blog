@@ -1,0 +1,21 @@
+services:
+  my-blog:
+    build:
+      context: .
+      dockerfile: My-Blog/deploy/Dockerfile
+    image: my-blog:latest
+    container_name: my-blog
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - TZ=Asia/Shanghai
+      - SPRING_DATASOURCE_URL=${DB_URL:-jdbc:mysql://host.docker.internal:3306/my_blog_db?useUnicode=true&characterEncoding=utf8&autoReconnect=true&useSSL=false&serverTimezone=UTC}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER:-root}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASS:-your_password}
+      - FILE_ATTACHMENT=/var/blog/data/
+    volumes:
+      - blog-data:/var/blog/data
+
+volumes:
+  blog-data:

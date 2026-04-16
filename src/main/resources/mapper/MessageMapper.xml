@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.site.blog.my.core.dao.MessageMapper">
+  <resultMap id="BaseResultMap" type="com.site.blog.my.core.entity.Message">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="fromUser" jdbcType="VARCHAR" property="fromUser" />
+    <result column="toUser" jdbcType="VARCHAR" property="toUser" />
+    <result column="content" jdbcType="VARCHAR" property="content" />
+    <result column="msgType" jdbcType="VARCHAR" property="msgType" />
+    <result column="createTime" jdbcType="DATE" property="createTime" />
+    <result column="msgId" jdbcType="VARCHAR" property="msgId" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    fromUser, toUser, content, msgType
+  </sql>
+
+  <insert id="insert" parameterType="com.site.blog.my.core.entity.Message">
+    insert into tb_messages (fromUser, toUser, content, msgType, createTime,msgId)
+    values (#{fromUser,jdbcType=VARCHAR}, #{toUser,jdbcType=VARCHAR}, #{content,jdbcType=VARCHAR},
+      #{msgType,jdbcType=VARCHAR}, #{createTime},#{msgId,jdbcType=VARCHAR})
+  </insert>
+
+  <select id="selectByUser" parameterType="Map" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from tb_messages
+    where 1=1
+    <if test="user!=null">
+      AND (fromUser = #{user} or toUser = #{user})
+    </if>
+    order by createTime desc limit 2
+  </select>
+
+  <select id="selectByMsgId" parameterType="Map" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from tb_messages
+    where 1=1
+    <if test="msgId!=null">
+      AND msgId = #{msgId}
+    </if>
+    order by createTime desc limit 2
+  </select>
+</mapper>

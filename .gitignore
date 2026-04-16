@@ -1,0 +1,51 @@
+# === Java ===
+target/
+*.class
+*.jar
+*.war
+*.log
+
+# === IDE ===
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+.settings/
+.project
+.classpath
+
+# === Maven ===
+!.mvn/wrapper/maven-wrapper.jar
+
+# === OS ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Spring Boot 凭据 (不要提交!) ===
+application-local.yml
+application-prd.yml
+
+# === 前端 ===
+frontend/admin/node_modules/
+frontend/admin/dist/
+frontend/web/node_modules/
+frontend/web/dist/
+*.local
+
+# === 数据 ===
+data/
+static-files/
+
+# === 日志 ===
+logs/
+*.log
+
+# === 临时文件 ===
+*.tmp
+*.bak
+*.swp
+.env
+.env.*
+!.env.example

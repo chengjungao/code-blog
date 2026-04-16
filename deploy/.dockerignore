@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+target/
+
+# Build output
+my-blog-admin/dist/
+my-blog-web/dist/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+
+# Static files (old themes, large)
+My-Blog/src/main/resources/static/blog/amaze/
+My-Blog/src/main/resources/static/blog/yummy-jekyll/
+My-Blog/src/main/resources/static/admin/dist/
+My-Blog/src/main/resources/static/admin/plugins/editormd/
+My-Blog/src/main/resources/templates/
+
+# Docs & screenshots
+My-Blog/static-files/
+My-Blog/README.md
+My-Blog/deploy/
+
+# Misc
+*.log
+*.tmp

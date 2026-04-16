@@ -1,0 +1,4 @@
+﻿# dev 环境配置
+spring:
+  datasource:
+    url: "jdbc:mysql://localhost:3306/my_blog_db?useUnicode=true&characterEncoding=utf8&autoReconnect=true&useSSL=false&serverTimezone=UTC"

@@ -1,0 +1,22 @@
+services:
+  my-blog:
+    build: .
+    image: my-blog:latest
+    container_name: my-blog
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - TZ=Asia/Shanghai
+      - SPRING_PROFILES_ACTIVE=prd
+      # 数据库连接（prd profile 中通过 ${DB_HOST} 等变量引用）
+      - DB_HOST=${DB_HOST:-139.224.255.209}
+      - DB_PORT=${DB_PORT:-8306}
+      - DB_NAME=${DB_NAME:-my_blog_db}
+      - DB_USER=${DB_USER:-root}
+      - DB_PASS=${DB_PASS:-your_password}
+    volumes:
+      - blog-data:/var/blog/data
+
+volumes:
+  blog-data:

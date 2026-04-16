@@ -1,0 +1,72 @@
+/* 全局样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Element Plus 微调 */
+.el-card {
+  border-radius: 8px !important;
+  border: none !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+.el-table th.el-table__cell {
+  background-color: #f8f9fc !important;
+  color: #1d1e2c;
+  font-weight: 600;
+}
+
+.el-button--primary {
+  background-color: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+}
+
+.el-button--primary:hover {
+  background-color: #6366f1 !important;
+  border-color: #6366f1 !important;
+}
+
+.el-menu-item.is-active {
+  background-color: rgba(79, 70, 229, 0.15) !important;
+}
+
+/* 页面通用 */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1d1e2c;
+  margin: 0;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c4cc;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}

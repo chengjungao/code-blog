@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+target/
+frontend/*/node_modules/
+
+# Build output
+frontend/admin/dist/
+frontend/web/dist/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Old templates & static (not needed for runtime)
+src/main/resources/static/blog/amaze/
+src/main/resources/static/blog/yummy-jekyll/
+src/main/resources/static/admin/dist/
+src/main/resources/static/admin/plugins/editormd/
+src/main/resources/templates/
+
+# Docs
+.github/
+LICENSE
+
+# Misc
+*.log
+*.tmp
