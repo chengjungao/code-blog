@@ -1,4 +1,4 @@
-services:
+﻿services:
   code-blog:
     image: ${ACR_REGISTRY}/${ACR_NAMESPACE}/code-blog:latest
     container_name: code-blog
@@ -13,9 +13,9 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${DB_PASS:-your_password}
       - FILE_ATTACHMENT=/var/blog/data/
     volumes:
-      - blog-data:/var/blog/data
+      # 数据持久化（上传文件等）
+      - /var/blog/data:/var/blog/data
+      # Solr 索引数据
+      - /var/blog/solr:/var/blog/solr
       # SSL 证书：宿主机 /etc/ssl/nginx/ → 容器内同路径（只读）
       - /etc/ssl/nginx:/etc/ssl/nginx:ro
-
-volumes:
-  blog-data:

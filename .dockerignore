@@ -1,11 +1,10 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
-target/
 frontend/*/node_modules/
 
-# Build output
-frontend/admin/dist/
-frontend/web/dist/
+# Build output (will be built inside Docker)
+target/
+frontend/*/dist/
 
 # IDE
 .idea/
@@ -24,16 +23,14 @@ Thumbs.db
 .gitignore
 .gitattributes
 
-# Old templates & static (not needed for runtime)
-src/main/resources/static/blog/amaze/
-src/main/resources/static/blog/yummy-jekyll/
-src/main/resources/static/admin/dist/
-src/main/resources/static/admin/plugins/editormd/
-src/main/resources/templates/
+# Deploy configs (docker-compose etc, but keep Dockerfile referenced files)
+deploy/docker-compose.yml
+deploy/README.md
 
 # Docs
 .github/
 LICENSE
+README.md
 
 # Misc
 *.log

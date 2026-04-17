@@ -1,39 +1,39 @@
-# ===========================================
-# Multi-stage Dockerfile for My-Blog
-# Build context: D:\Projects\ (parent dir)
-# Usage: cd D:\Projects && docker build -f My-Blog/deploy/Dockerfile -t my-blog .
+﻿# ===========================================
+# Multi-stage Dockerfile for Code-Blog
+# Build context: project root
+# Usage: docker build -f deploy/Dockerfile -t code-blog:latest .
 # ===========================================
 
 # ---------- Stage 1: Build Admin Frontend ----------
-FROM node:18-alpine AS build-admin
+FROM node:20-alpine AS build-admin
 WORKDIR /app
-COPY my-blog-admin/package.json my-blog-admin/package-lock.json ./
+COPY frontend/admin/package.json frontend/admin/package-lock.json ./
 RUN npm ci --registry=https://registry.npmmirror.com
-COPY my-blog-admin/ ./
+COPY frontend/admin/ ./
 RUN npm run build
 
 # ---------- Stage 2: Build Blog Frontend ----------
-FROM node:18-alpine AS build-blog
+FROM node:20-alpine AS build-blog
 WORKDIR /app
-COPY my-blog-web/package.json my-blog-web/package-lock.json ./
+COPY frontend/web/package.json frontend/web/package-lock.json ./
 RUN npm ci --registry=https://registry.npmmirror.com
-COPY my-blog-web/ ./
+COPY frontend/web/ ./
 RUN npm run build
 
 # ---------- Stage 3: Maven Build Backend ----------
 FROM maven:3.8-openjdk-8 AS build-backend
 WORKDIR /app
-COPY My-Blog/pom.xml ./
+COPY pom.xml ./
 # Download dependencies first (cache layer)
 RUN mvn dependency:go-offline -B || true
-COPY My-Blog/src ./src
+COPY src ./src
 RUN mvn package -DskipTests -B
 
 # ---------- Stage 4: Final Image ----------
-FROM openjdk:8u342-jre-alpine
+FROM eclipse-temurin:8-jre-alpine
 
 LABEL org.opencontainers.image.authors="chengjungao"
-LABEL org.opencontainers.image.description="My-Blog: Nginx + Spring Boot single image"
+LABEL org.opencontainers.image.description="Code-Blog: Nginx + Spring Boot single image"
 
 # Install nginx + supervisor
 RUN apk add --no-cache nginx supervisor curl
@@ -51,13 +51,13 @@ COPY --from=build-admin /app/dist /usr/share/nginx/html/admin
 COPY --from=build-blog /app/dist /usr/share/nginx/html/blog
 
 # Copy nginx config
-COPY My-Blog/deploy/nginx.conf /etc/nginx/http.d/default.conf
+COPY deploy/nginx.conf /etc/nginx/http.d/default.conf
 
 # Copy supervisor config
-COPY My-Blog/deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Copy entrypoint
-COPY My-Blog/deploy/entrypoint.sh /opt/entrypoint.sh
+COPY deploy/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 
 # Remove default nginx config
