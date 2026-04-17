@@ -1,13 +1,11 @@
 services:
-  my-blog:
-    build:
-      context: .
-      dockerfile: My-Blog/deploy/Dockerfile
-    image: my-blog:latest
-    container_name: my-blog
+  code-blog:
+    image: ${ACR_REGISTRY}/${ACR_NAMESPACE}/code-blog:latest
+    container_name: code-blog
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     environment:
       - TZ=Asia/Shanghai
       - SPRING_DATASOURCE_URL=${DB_URL:-jdbc:mysql://host.docker.internal:3306/my_blog_db?useUnicode=true&characterEncoding=utf8&autoReconnect=true&useSSL=false&serverTimezone=UTC}
@@ -16,6 +14,8 @@ services:
       - FILE_ATTACHMENT=/var/blog/data/
     volumes:
       - blog-data:/var/blog/data
+      # SSL 证书：宿主机 /etc/ssl/nginx/ → 容器内同路径（只读）
+      - /etc/ssl/nginx:/etc/ssl/nginx:ro
 
 volumes:
   blog-data:

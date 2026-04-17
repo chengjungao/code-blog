@@ -63,7 +63,7 @@ RUN chmod +x /opt/entrypoint.sh
 # Remove default nginx config
 RUN rm -f /etc/nginx/http.d/default.conf.default
 
-EXPOSE 80
+EXPOSE 80 443
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \

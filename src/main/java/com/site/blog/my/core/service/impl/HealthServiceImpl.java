@@ -32,6 +32,11 @@ public class HealthServiceImpl implements HealthService {
     @Value("${vision.token:}")
     private String visionToken;
 
+    @Value("${vision.model:}")
+    private String visionModel;
+
+    @Value("${chat.model:}")
+    private String chatModel;
 
     @Override
     public String analyzeIngredients(MultipartFile image) {
@@ -148,7 +153,8 @@ public class HealthServiceImpl implements HealthService {
         String base64_image = java.util.Base64.getEncoder().encodeToString(image.getBytes());
         String content = "data:" + image.getContentType() + ";base64," + base64_image;
         JSONObject requestBody = new JSONObject();
-        requestBody.put("model", "qwen-vl-max-2025-08-13");
+        requestBody.put("model", visionModel);
+        requestBody.put("enable_thinking",false);
         requestBody.put("temperature", 0);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", systemPrompt));
@@ -168,9 +174,9 @@ public class HealthServiceImpl implements HealthService {
         headers.set("Authorization", "Bearer " + visionToken);
 
         JSONObject requestBody = new JSONObject();
-        requestBody.put("model", "qwen-plus-2025-07-28");
+        requestBody.put("model", chatModel);
         requestBody.put("temperature", 0);
-
+        requestBody.put("enable_thinking",false);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", systemPrompt));
         messages.add(new JSONObject().fluentPut("role", "user").fluentPut("content", userInput));

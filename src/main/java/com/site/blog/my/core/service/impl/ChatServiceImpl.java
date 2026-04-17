@@ -26,14 +26,17 @@ public class ChatServiceImpl implements ChatService {
     @Value("${chat.server.url:}")
     private String url;
 
-    @Value("${token:}")
-    private String token;
-
     @Value("${vision.server.url:}")
     private String visionServerUrl;
 
     @Value("${vision.token:}")
     private String visionToken;
+
+    @Value("${vision.model:}")
+    private String visionModel;
+
+    @Value("${chat.model:}")
+    private String chatModel;
 
     @Override
     public String chat(String content, String user, List<Message> history) {
@@ -56,9 +59,9 @@ public class ChatServiceImpl implements ChatService {
 
     }
 
-    private static HttpEntity<String> getStringHttpEntity(String content, String user,List<Message> history,HttpHeaders headers) {
+    private HttpEntity<String> getStringHttpEntity(String content, String user,List<Message> history,HttpHeaders headers) {
         JSONObject requestBody = new JSONObject();
-        requestBody.put("model", "qwen-plus");
+        requestBody.put("model", chatModel);
         requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 256);
         JSONArray messages = new JSONArray();
@@ -102,9 +105,9 @@ public class ChatServiceImpl implements ChatService {
         }
     }
 
-    private static HttpEntity<String> getStringHttpEntityVision(String content,HttpHeaders headers) {
+    private HttpEntity<String> getStringHttpEntityVision(String content,HttpHeaders headers) {
         JSONObject requestBody = new JSONObject();
-        requestBody.put("model", "qwen-vl-plus");
+        requestBody.put("model", chatModel);
         requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 512);
         JSONArray messages = new JSONArray();
