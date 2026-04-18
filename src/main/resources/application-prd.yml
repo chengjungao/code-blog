@@ -1,0 +1,6 @@
+# production 环境配置
+file:
+  attachment: /var/blog/data/
+
+solr:
+  home: /var/blog/solr/

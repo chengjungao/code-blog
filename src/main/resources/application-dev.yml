@@ -1,4 +1,7 @@
-﻿# dev 环境配置
+# dev 环境配置
 spring:
   datasource:
     url: "jdbc:mysql://localhost:3306/my_blog_db?useUnicode=true&characterEncoding=utf8&autoReconnect=true&useSSL=false&serverTimezone=UTC"
+
+solr:
+  home: D:/Projects/code-blog/target/classes/blog

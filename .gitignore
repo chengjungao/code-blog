@@ -25,7 +25,6 @@ Desktop.ini
 
 # === Spring Boot 凭据 (不要提交!) ===
 application-local.yml
-application-prd.yml
 
 # === 前端 ===
 frontend/admin/node_modules/

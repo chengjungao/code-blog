@@ -23,8 +23,8 @@ public class MyBlogWebMvcConfigurer implements WebMvcConfigurer {
                 addPathPatterns("/admin/**").
                 excludePathPatterns("/admin/login").
                 excludePathPatterns("/admin/api/login").   // Vue 前端登录接口放行
-                excludePathPatterns("/admin/dist/**").
-                excludePathPatterns("/admin/plugins/**");
+                excludePathPatterns("/admin/").            // Vue SPA 入口
+                excludePathPatterns("/admin/assets/**");   // Vue 静态资源
     }
 
     public void addResourceHandlers(ResourceHandlerRegistry registry) {

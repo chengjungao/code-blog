@@ -23,19 +23,30 @@ public class AdminLoginInterceptor implements HandlerInterceptor {
         String requestServletPath = request.getServletPath();
 
         if (requestServletPath.startsWith("/admin") && null == request.getSession().getAttribute("loginUser")) {
-            // 所有 AJAX 请求返回 401 JSON（Vue 前端发来的都是 XHR）
-            String requestedWith = request.getHeader("X-Requested-With");
-            boolean isAjax = "XMLHttpRequest".equals(requestedWith) || requestServletPath.startsWith("/admin/api");
-            if (isAjax) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json;charset=UTF-8");
-                Result result = ResultGenerator.genErrorResult(401, "未登录或登录已过期");
-                response.getWriter().write(JSON.toJSONString(result));
-                return false;
+            // Vue 前端页面请求（HTML/JS/CSS 等）放行，由前端路由守卫处理登录跳转
+            boolean isStaticAsset = requestServletPath.startsWith("/admin/assets/") 
+                || requestServletPath.equals("/admin/") 
+                || requestServletPath.equals("/admin")
+                || requestServletPath.endsWith(".html")
+                || requestServletPath.endsWith(".js")
+                || requestServletPath.endsWith(".css")
+                || requestServletPath.endsWith(".map")
+                || requestServletPath.endsWith(".ico")
+                || requestServletPath.endsWith(".png")
+                || requestServletPath.endsWith(".jpg")
+                || requestServletPath.endsWith(".svg")
+                || requestServletPath.endsWith(".woff")
+                || requestServletPath.endsWith(".woff2")
+                || requestServletPath.endsWith(".ttf")
+                || requestServletPath.endsWith(".eot");
+            if (isStaticAsset) {
+                return true;
             }
-            // 传统页面请求重定向到登录页
-            request.getSession().setAttribute("errorMsg", "请重新登陆");
-            response.sendRedirect(request.getContextPath() + "/admin/login");
+            // 所有 API 请求返回 401 JSON
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            Result result = ResultGenerator.genErrorResult(401, "未登录或登录已过期");
+            response.getWriter().write(JSON.toJSONString(result));
             return false;
         } else {
             request.getSession().removeAttribute("errorMsg");

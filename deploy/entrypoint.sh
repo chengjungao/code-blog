@@ -1,8 +1,8 @@
-#!/bin/sh
+﻿#!/bin/sh
 set -e
 
 echo "========================================="
-echo "  My-Blog Starting..."
+echo "  Code-Blog Starting..."
 echo "========================================="
 
 # 确保数据目录存在
