@@ -64,6 +64,7 @@ public class ChatServiceImpl implements ChatService {
         requestBody.put("model", chatModel);
         requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 256);
+        requestBody.put("enable_thinking",false);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", "你是代码江湖公众号的智能助手，可以为用户提供准确和专业的回答,使用简洁的文字200字内,纯文本格式输出"));
 
@@ -110,6 +111,7 @@ public class ChatServiceImpl implements ChatService {
         requestBody.put("model", chatModel);
         requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 512);
+        requestBody.put("enable_thinking",false);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", "你是专业的营养师，能帮助分析配料表成分"));
         JSONArray imageContent = new JSONArray();
