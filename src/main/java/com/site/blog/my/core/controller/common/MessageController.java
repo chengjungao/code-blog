@@ -17,7 +17,7 @@ public class MessageController {
     @Autowired
     private MessageService messageService;
 
-    @Value("${token:}")
+    @Value("${wechat:}")
     private String token;
 
     @GetMapping("/wechat")
