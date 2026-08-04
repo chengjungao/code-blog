@@ -1,8 +1,6 @@
 package com.site.blog.my.core.controller.common;
 
-import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.site.blog.my.core.service.HealthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,143 +22,65 @@ public class HealthAgentController {
     @Value("${token:}")
     private String authToken;
 
-    // --- 配料表识别 ---
-    @PostMapping(value = "/ingredients")
-    public ResponseEntity<?> analyzeIngredients(
-            @RequestParam("image") MultipartFile image,@RequestHeader Map<String, String> headers) {
-        if (headers.get("auth-token") == null || !headers.get("auth-token").equals(authToken)) {
-            JSONObject body = new JSONObject();
-            body.put("error", "未授权访问");
-            return ResponseEntity.status(401).body(body);
-        }
-        JSONObject body = new JSONObject();
-        if (image.isEmpty()) {
-            body.put("error", "图片不能为空");
-            return ResponseEntity.badRequest().body(body);
-        }
-        String result = healthService.analyzeIngredients(image);
-        body.put("result", JSONArray.parseArray(result));
-        return ResponseEntity.ok(body);
-    }
-
-    @PostMapping(value = "/ingredientsV2")
-    public ResponseEntity<?> analyzeIngredientsV2(
-            @RequestParam("image") MultipartFile image,@RequestHeader Map<String, String> headers) {
-        if (headers.get("auth-token") == null || !headers.get("auth-token").equals(authToken)) {
-            JSONObject body = new JSONObject();
-            body.put("error", "未授权访问");
-            return ResponseEntity.status(401).body(body);
-        }
-        JSONObject body = new JSONObject();
-        if (image.isEmpty()) {
-            body.put("error", "图片不能为空");
-            return ResponseEntity.badRequest().body(body);
-        }
-        String result = healthService.analyzeIngredientsV2(image);
-        body.put("result", JSONObject.parseObject(result));
-        return ResponseEntity.ok(body);
-    }
-
-    // --- 热量估算 ---
-    @PostMapping(value = "/calories")
-    public ResponseEntity<?> estimateCalories(
-            @RequestParam("image") MultipartFile image,@RequestHeader Map<String, String> headers) {
-        if (headers.get("auth-token") == null || !headers.get("auth-token").equals(authToken)) {
-            JSONObject body = new JSONObject();
-            body.put("error", "未授权访问");
-            return ResponseEntity.status(401).body(body);
-        }
-        JSONObject body = new JSONObject();
-        if (image.isEmpty()) {
-            body.put("error", "图片不能为空");
-            return ResponseEntity.badRequest().body(body);
-        }
-        String result = healthService.estimateCalories(image);
-        body.put("result", JSONObject.parseObject(result));
-        return ResponseEntity.ok(body);
-    }
+    // ==================== 配料表识别 ====================
 
     @PostMapping(value = "/ingredients_ocr")
-    public ResponseEntity<?> analyzeIngredients_ocr(
-            @RequestParam("image") MultipartFile image,@RequestHeader Map<String, String> headers) {
-        if (headers.get("auth-token") == null || !headers.get("auth-token").equals(authToken)) {
-            JSONObject body = new JSONObject();
-            body.put("error", "未授权访问");
-            return ResponseEntity.status(401).body(body);
+    public ResponseEntity<?> analyzeIngredientsOcr(
+            @RequestParam("image") MultipartFile image,
+            @RequestHeader Map<String, String> headers) {
+        if (!checkAuth(headers)) {
+            return ResponseEntity.status(401).body(msg("error", "未授权访问"));
         }
-        JSONObject body = new JSONObject();
         if (image.isEmpty()) {
-            body.put("error", "图片不能为空");
-            return ResponseEntity.badRequest().body(body);
+            return ResponseEntity.badRequest().body(msg("error", "图片不能为空"));
         }
         String result = healthService.analyzeIngredientsOcr(image);
-        body.put("result", result);
-        return ResponseEntity.ok(body);
-    }
-
-    // --- 热量估算 ---
-    @PostMapping(value = "/calories_ocr")
-    public ResponseEntity<?> estimateCalories_ocr(
-            @RequestParam("image") MultipartFile image,@RequestHeader Map<String, String> headers) {
-        if (headers.get("auth-token") == null || !headers.get("auth-token").equals(authToken)) {
-            JSONObject body = new JSONObject();
-            body.put("error", "未授权访问");
-            return ResponseEntity.status(401).body(body);
-        }
-        JSONObject body = new JSONObject();
-        if (image.isEmpty()) {
-            body.put("error", "图片不能为空");
-            return ResponseEntity.badRequest().body(body);
-        }
-        String result = healthService.estimateCaloriesOcr(image);
-        body.put("result", result);
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(msg("result", result));
     }
 
     @PostMapping(value = "/ingredientsV3")
-    public ResponseEntity<?> analyzeIngredientsV3(@RequestBody Map<String,String> request, @RequestHeader Map<String, String> headers) {
-        if (headers.get("auth-token") == null || !headers.get("auth-token").equals(authToken)) {
-            JSONObject body = new JSONObject();
-            body.put("error", "未授权访问");
-            return ResponseEntity.status(401).body(body);
+    public ResponseEntity<?> analyzeIngredientsV3(
+            @RequestBody Map<String, String> request,
+            @RequestHeader Map<String, String> headers) {
+        if (!checkAuth(headers)) {
+            return ResponseEntity.status(401).body(msg("error", "未授权访问"));
         }
-        JSONObject body = new JSONObject();
         String content = request.get("content");
-        if (content == null || content.isEmpty()) {
-            body.put("error", "内容不能为空");
-            return ResponseEntity.badRequest().body(body);
+        if (content == null || content.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(msg("error", "内容不能为空"));
         }
-        String result = healthService.analyzeIngredientsV3(content);
-        body.put("result", JSONObject.parseObject(result));
-        return ResponseEntity.ok(body);
+        String result = healthService.analyzeIngredientsV3(content.trim());
+        return ResponseEntity.ok(msg("result", JSONObject.parseObject(result)));
     }
 
-    // --- 热量估算 ---
-    @PostMapping(value = "/caloriesV3")
-    public ResponseEntity<?> estimateCaloriesV3(
-            @RequestBody Map<String,String> request,@RequestHeader Map<String, String> headers) {
-        if (headers.get("auth-token") == null || !headers.get("auth-token").equals(authToken)) {
-            JSONObject body = new JSONObject();
-            body.put("error", "未授权访问");
-            return ResponseEntity.status(401).body(body);
+    // ==================== 配料知识查询 ====================
+
+    @PostMapping(value = "/ingredients/lookup")
+    public ResponseEntity<?> lookupIngredient(
+            @RequestBody Map<String, String> request,
+            @RequestHeader Map<String, String> headers) {
+        if (!checkAuth(headers)) {
+            return ResponseEntity.status(401).body(msg("error", "未授权访问"));
         }
-        JSONObject body = new JSONObject();
-        String content = request.get("content");
-        if (content == null || content.isEmpty()) {
-            body.put("error", "内容不能为空");
-            return ResponseEntity.badRequest().body(body);
+        String name = request.get("name");
+        if (name == null || name.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(msg("error", "请输入配料名称"));
         }
-        String result = healthService.estimateCaloriesV3(content);
-        body.put("result", JSONObject.parseObject(result));
-        return ResponseEntity.ok(body);
+        String result = healthService.lookupIngredient(name.trim());
+        return ResponseEntity.ok(msg("result", JSONObject.parseObject(result)));
     }
 
-    // --- 辅助方法：尝试解析 JSON，失败则返回字符串 ---
-    private Object parseJsonOrString(String str) {
-        try {
-            return new ObjectMapper().readTree(str);
-        } catch (Exception e) {
-            return str; // 原始文本返回
-        }
+    // ==================== 工具方法 ====================
+
+    private boolean checkAuth(Map<String, String> headers) {
+        String token = headers.get("auth-token");
+        return token != null && token.equals(authToken);
     }
+
+    private Map<String, Object> msg(String key, Object value) {
+        Map<String, Object> map = new HashMap<>();
+        map.put(key, value);
+        return map;
+    }
+
 }
