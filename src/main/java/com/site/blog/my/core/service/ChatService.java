@@ -8,4 +8,6 @@ public interface ChatService {
     public String chat(String content, String user,List<Message> history);
 
     public String vision(String content);
+
+    public String assistantChat(String content, String historyJson);
 }

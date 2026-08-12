@@ -4,6 +4,7 @@ import cn.hutool.captcha.ShearCaptcha;
 import com.site.blog.my.core.controller.vo.BlogDetailVO;
 import com.site.blog.my.core.entity.BlogComment;
 import com.site.blog.my.core.entity.BlogLink;
+import com.site.blog.my.core.entity.GuestbookMessage;
 import com.site.blog.my.core.service.*;
 import com.site.blog.my.core.util.*;
 
@@ -38,6 +39,10 @@ public class BlogApiController {
     private ConfigService configService;
     @Resource
     private CategoryService categoryService;
+    @Resource
+    private GuestbookMessageService guestbookMessageService;
+    @Resource
+    private ChatService chatService;
 
     /**
      * 获取网站配置
@@ -197,5 +202,76 @@ public class BlogApiController {
         }
         comment.setCommentBody(MyBlogUtils.cleanString(commentBody));
         return ResultGenerator.genSuccessResult(commentService.addComment(comment));
+    }
+
+    /**
+     * 留言板 - 分页获取已审核留言
+     */
+    @GetMapping("/messages/{page}")
+    public Result messages(@PathVariable("page") int page) {
+        PageResult messagePageResult = guestbookMessageService.getMessagePageByPageNum(page);
+        Map<String, Object> data = new HashMap<>();
+        data.put("messagePage", messagePageResult);
+        data.put("totalMessages", guestbookMessageService.getTotalApprovedMessages());
+        return ResultGenerator.genSuccessResult(data);
+    }
+
+    /**
+     * 留言板 - 提交留言（需审核 + 敏感词自动过滤）
+     */
+    @PostMapping("/message")
+    public Result message(HttpServletRequest request,
+                          @RequestParam String nickname,
+                          @RequestParam String email,
+                          @RequestParam(required = false) String avatar,
+                          @RequestParam String messageBody) {
+        if (StringUtils.isEmpty(nickname)) {
+            return ResultGenerator.genFailResult("请输入昵称");
+        }
+        if (nickname.trim().length() > 30) {
+            return ResultGenerator.genFailResult("昵称过长");
+        }
+        if (StringUtils.isEmpty(email)) {
+            return ResultGenerator.genFailResult("请输入邮箱地址");
+        }
+        if (!PatternUtil.isEmail(email)) {
+            return ResultGenerator.genFailResult("请输入正确的邮箱地址");
+        }
+        if (StringUtils.isEmpty(messageBody)) {
+            return ResultGenerator.genFailResult("请输入留言内容");
+        }
+        if (messageBody.trim().length() > 500) {
+            return ResultGenerator.genFailResult("留言内容过长");
+        }
+        GuestbookMessage message = new GuestbookMessage();
+        message.setNickname(MyBlogUtils.cleanString(nickname));
+        message.setEmail(email);
+        if (avatar != null && !avatar.trim().isEmpty()) {
+            message.setAvatar(avatar.trim());
+        }
+        message.setMessageBody(MyBlogUtils.cleanString(messageBody));
+        message.setMessageIp(request.getRemoteAddr());
+        String error = guestbookMessageService.addMessage(message);
+        if (error != null) {
+            return ResultGenerator.genFailResult(error);
+        }
+        return ResultGenerator.genSuccessResult("留言提交成功，等待审核");
+    }
+
+    /**
+     * 智能分身 - 对话
+     */
+    @PostMapping("/assistant")
+    public Result assistant(@RequestBody Map<String, Object> body) {
+        String message = (String) body.get("message");
+        String history = body.get("history") != null ? body.get("history").toString() : null;
+        if (StringUtils.isEmpty(message)) {
+            return ResultGenerator.genFailResult("消息不能为空");
+        }
+        if (message.trim().length() > 500) {
+            return ResultGenerator.genFailResult("消息过长，请精简后重试");
+        }
+        String reply = chatService.assistantChat(message.trim(), history);
+        return ResultGenerator.genSuccessResult(reply);
     }
 }

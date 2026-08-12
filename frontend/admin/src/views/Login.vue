@@ -1,17 +1,12 @@
 <template>
   <div class="login-container">
-    <div class="login-bg-shapes">
-      <div class="shape shape-1"></div>
-      <div class="shape shape-2"></div>
-      <div class="shape shape-3"></div>
-    </div>
     <div class="login-card">
       <div class="login-header">
         <div class="login-logo">
-          <span class="logo-icon">🗡️</span>
+          <span class="logo-icon">CG</span>
         </div>
-        <h2>代码江湖博客后台管理</h2>
-        <p>Code Jianghu Blog Admin</p>
+        <h2>个人品牌站管理</h2>
+        <p>Personal Brand Admin</p>
       </div>
       
       <el-form
@@ -76,7 +71,7 @@
       </el-form>
 
       <div class="login-footer">
-        <p>© 代码江湖 · Code Jianghu</p>
+        <p>© 拾光集 · 程军高</p>
       </div>
     </div>
   </div>
@@ -150,47 +145,18 @@ onMounted(() => refreshCaptcha())
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #e0f2f1 0%, #e8f5e9 35%, #f1f8e9 65%, #fff8e1 100%);
+  background: #f5f7f6;
   position: relative;
   overflow: hidden;
-}
-
-/* 背景装饰圆 */
-.login-bg-shapes {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.shape {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.35;
-}
-.shape-1 {
-  width: 400px; height: 400px;
-  background: radial-gradient(circle, #a5d6a7, transparent 70%);
-  top: -120px; left: -100px;
-}
-.shape-2 {
-  width: 300px; height: 300px;
-  background: radial-gradient(circle, #80cbc4, transparent 70%);
-  bottom: -80px; right: -60px;
-}
-.shape-3 {
-  width: 200px; height: 200px;
-  background: radial-gradient(circle, #ffcc80, transparent 70%);
-  top: 40%; right: 15%;
 }
 
 .login-card {
   width: 400px;
   padding: 40px 36px 24px;
-  background: rgba(255,255,255,0.82);
-  backdrop-filter: blur(16px);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0,0,0,0.04);
-  border: 1px solid rgba(255,255,255,0.6);
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 12px 36px rgba(27, 44, 39, 0.08);
+  border: 1px solid #dde5df;
   position: relative;
   z-index: 1;
 }
@@ -205,13 +171,21 @@ onMounted(() => refreshCaptcha())
 }
 
 .logo-icon {
-  font-size: 42px;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  width: 54px;
+  height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #1f2f2b;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
 }
 
 .login-header h2 {
   font-size: 22px;
-  color: #2e7d32;
+  color: #1f2f2b;
   margin: 0 0 6px;
   font-weight: 700;
   letter-spacing: 1px;

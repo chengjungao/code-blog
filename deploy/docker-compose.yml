@@ -11,6 +11,9 @@
       - SPRING_DATASOURCE_URL=${DB_URL:-jdbc:mysql://host.docker.internal:3306/my_blog_db?useUnicode=true&characterEncoding=utf8&autoReconnect=true&useSSL=false&serverTimezone=UTC}
       - SPRING_DATASOURCE_USERNAME=${DB_USER:-root}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASS:-your_password}
+      - BLOG_TOKEN=${BLOG_TOKEN:-}
+      - WECHAT_TOKEN=${WECHAT_TOKEN:-}
+      - VISION_TOKEN=${VISION_TOKEN:-}
       - FILE_ATTACHMENT=/var/blog/data/
     volumes:
       # 数据持久化（上传文件等）

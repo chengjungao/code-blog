@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.site.blog.my.core.dao.GuestbookMessageMapper">
+    <resultMap id="BaseResultMap" type="com.site.blog.my.core.entity.GuestbookMessage">
+        <id column="message_id" jdbcType="BIGINT" property="messageId"/>
+        <result column="nickname" jdbcType="VARCHAR" property="nickname"/>
+        <result column="email" jdbcType="VARCHAR" property="email"/>
+        <result column="avatar" jdbcType="VARCHAR" property="avatar"/>
+        <result column="message_body" jdbcType="VARCHAR" property="messageBody"/>
+        <result column="message_create_time" jdbcType="TIMESTAMP" property="messageCreateTime"/>
+        <result column="message_ip" jdbcType="VARCHAR" property="messageIp"/>
+        <result column="reply_body" jdbcType="VARCHAR" property="replyBody"/>
+        <result column="reply_create_time" jdbcType="TIMESTAMP" property="replyCreateTime"/>
+        <result column="message_status" jdbcType="TINYINT" property="messageStatus"/>
+        <result column="is_deleted" jdbcType="TINYINT" property="isDeleted"/>
+    </resultMap>
+    <sql id="Base_Column_List">
+    message_id, nickname, email, avatar, message_body, message_create_time,
+    message_ip, reply_body, reply_create_time, message_status, is_deleted
+  </sql>
+    <select id="findMessageList" parameterType="Map" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from tb_message
+        where is_deleted=0
+        <if test="messageStatus!=null">
+            AND message_status = #{messageStatus}
+        </if>
+        order by message_id desc
+        <if test="start!=null and limit!=null">
+            limit #{start},#{limit}
+        </if>
+    </select>
+
+    <select id="getTotalMessages" parameterType="Map" resultType="int">
+        select count(*) from tb_message
+        where is_deleted=0
+        <if test="messageStatus!=null">
+            AND message_status = #{messageStatus}
+        </if>
+    </select>
+
+    <select id="getTotalApprovedMessages" resultType="int">
+        select count(*) from tb_message
+        where is_deleted=0 and message_status=1
+    </select>
+
+    <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from tb_message
+        where message_id = #{messageId,jdbcType=BIGINT} and is_deleted=0
+    </select>
+    <update id="deleteByPrimaryKey" parameterType="java.lang.Long">
+    update tb_message set is_deleted=1
+    where message_id = #{messageId,jdbcType=BIGINT} and is_deleted=0
+  </update>
+    <update id="checkDone">
+        update tb_message
+        set message_status=1 where message_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        and message_status = 0
+    </update>
+    <update id="deleteBatch">
+        update tb_message
+        set is_deleted=1 where message_id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+    <insert id="insert" parameterType="com.site.blog.my.core.entity.GuestbookMessage">
+    insert into tb_message (message_id, nickname, email,
+      avatar, message_body, message_create_time,
+      message_ip, reply_body, reply_create_time,
+      message_status, is_deleted
+      )
+    values (#{messageId,jdbcType=BIGINT}, #{nickname,jdbcType=VARCHAR}, #{email,jdbcType=VARCHAR},
+      #{avatar,jdbcType=VARCHAR}, #{messageBody,jdbcType=VARCHAR}, #{messageCreateTime,jdbcType=TIMESTAMP},
+      #{messageIp,jdbcType=VARCHAR}, #{replyBody,jdbcType=VARCHAR}, #{replyCreateTime,jdbcType=TIMESTAMP},
+      #{messageStatus,jdbcType=TINYINT}, #{isDeleted,jdbcType=TINYINT}
+      )
+  </insert>
+    <insert id="insertSelective" parameterType="com.site.blog.my.core.entity.GuestbookMessage">
+        insert into tb_message
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="messageId != null">
+                message_id,
+            </if>
+            <if test="nickname != null">
+                nickname,
+            </if>
+            <if test="email != null">
+                email,
+            </if>
+            <if test="avatar != null">
+                avatar,
+            </if>
+            <if test="messageBody != null">
+                message_body,
+            </if>
+            <if test="messageCreateTime != null">
+                message_create_time,
+            </if>
+            <if test="messageIp != null">
+                message_ip,
+            </if>
+            <if test="replyBody != null">
+                reply_body,
+            </if>
+            <if test="replyCreateTime != null">
+                reply_create_time,
+            </if>
+            <if test="messageStatus != null">
+                message_status,
+            </if>
+            <if test="isDeleted != null">
+                is_deleted,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="messageId != null">
+                #{messageId,jdbcType=BIGINT},
+            </if>
+            <if test="nickname != null">
+                #{nickname,jdbcType=VARCHAR},
+            </if>
+            <if test="email != null">
+                #{email,jdbcType=VARCHAR},
+            </if>
+            <if test="avatar != null">
+                #{avatar,jdbcType=VARCHAR},
+            </if>
+            <if test="messageBody != null">
+                #{messageBody,jdbcType=VARCHAR},
+            </if>
+            <if test="messageCreateTime != null">
+                #{messageCreateTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test="messageIp != null">
+                #{messageIp,jdbcType=VARCHAR},
+            </if>
+            <if test="replyBody != null">
+                #{replyBody,jdbcType=VARCHAR},
+            </if>
+            <if test="replyCreateTime != null">
+                #{replyCreateTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test="messageStatus != null">
+                #{messageStatus,jdbcType=TINYINT},
+            </if>
+            <if test="isDeleted != null">
+                #{isDeleted,jdbcType=TINYINT},
+            </if>
+        </trim>
+    </insert>
+    <update id="updateByPrimaryKeySelective" parameterType="com.site.blog.my.core.entity.GuestbookMessage">
+        update tb_message
+        <set>
+            <if test="nickname != null">
+                nickname = #{nickname,jdbcType=VARCHAR},
+            </if>
+            <if test="email != null">
+                email = #{email,jdbcType=VARCHAR},
+            </if>
+            <if test="avatar != null">
+                avatar = #{avatar,jdbcType=VARCHAR},
+            </if>
+            <if test="messageBody != null">
+                message_body = #{messageBody,jdbcType=VARCHAR},
+            </if>
+            <if test="messageCreateTime != null">
+                message_create_time = #{messageCreateTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test="messageIp != null">
+                message_ip = #{messageIp,jdbcType=VARCHAR},
+            </if>
+            <if test="replyBody != null">
+                reply_body = #{replyBody,jdbcType=VARCHAR},
+            </if>
+            <if test="replyCreateTime != null">
+                reply_create_time = #{replyCreateTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test="messageStatus != null">
+                message_status = #{messageStatus,jdbcType=TINYINT},
+            </if>
+            <if test="isDeleted != null">
+                is_deleted = #{isDeleted,jdbcType=TINYINT},
+            </if>
+        </set>
+        where message_id = #{messageId,jdbcType=BIGINT}
+    </update>
+    <update id="updateByPrimaryKey" parameterType="com.site.blog.my.core.entity.GuestbookMessage">
+    update tb_message
+    set nickname = #{nickname,jdbcType=VARCHAR},
+      email = #{email,jdbcType=VARCHAR},
+      avatar = #{avatar,jdbcType=VARCHAR},
+      message_body = #{messageBody,jdbcType=VARCHAR},
+      message_create_time = #{messageCreateTime,jdbcType=TIMESTAMP},
+      message_ip = #{messageIp,jdbcType=VARCHAR},
+      reply_body = #{replyBody,jdbcType=VARCHAR},
+      reply_create_time = #{replyCreateTime,jdbcType=TIMESTAMP},
+      message_status = #{messageStatus,jdbcType=TINYINT},
+      is_deleted = #{isDeleted,jdbcType=TINYINT}
+    where message_id = #{messageId,jdbcType=BIGINT}
+  </update>
+</mapper>

@@ -7,7 +7,7 @@
     <el-card>
       <el-table :data="tableData" v-loading="loading" stripe>
         <el-table-column prop="commentId" label="ID" width="80" />
-        <el-table-column prop="blogTitle" label="文章" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="blogTitle" label="笔记" min-width="160" show-overflow-tooltip />
         <el-table-column prop="commentator" label="评论人" width="120" />
         <el-table-column prop="commentBody" label="评论内容" min-width="200" show-overflow-tooltip />
         <el-table-column label="类型" width="90" align="center">

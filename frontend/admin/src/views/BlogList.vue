@@ -1,10 +1,10 @@
 <template>
   <div class="blog-list">
     <div class="page-header">
-      <h3>博客管理</h3>
+      <h3>技术笔记</h3>
       <el-button type="primary" @click="goEdit()">
         <el-icon><Plus /></el-icon>
-        新增文章
+        新增笔记
       </el-button>
     </div>
 
@@ -27,7 +27,7 @@
 
       <el-table :data="tableData" v-loading="loading" stripe>
         <el-table-column prop="blogId" label="ID" width="70" />
-        <el-table-column prop="blogTitle" label="标题" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="blogTitle" label="笔记标题" min-width="200" show-overflow-tooltip />
         <el-table-column prop="blogCategoryName" label="分类" width="120" />
         <el-table-column prop="blogTags" label="标签" min-width="150" show-overflow-tooltip />
         <el-table-column prop="blogViews" label="浏览" width="80" align="center" />
@@ -109,7 +109,7 @@ const goEdit = (id) => {
 
 const handleDelete = async (id) => {
   try {
-    await ElMessageBox.confirm('确定删除该文章吗？', '提示', { type: 'warning' })
+    await ElMessageBox.confirm('确定删除该笔记吗？', '提示', { type: 'warning' })
     await deleteBlog([id])
     ElMessage.success('删除成功')
     fetchData()

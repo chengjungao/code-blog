@@ -87,7 +87,7 @@ crud.interceptors.response.use(
   }
 )
 
-// ===== 博客管理 =====
+// ===== 技术笔记管理 =====
 export function getBlogList(params) {
   return crud({ url: '/blogs/list', method: 'get', params })
 }
@@ -165,6 +165,23 @@ export function replyComment(data) {
 
 export function deleteComment(ids) {
   return crud({ url: '/comments/delete', method: 'post', data: ids, headers: { 'Content-Type': 'application/json' } })
+}
+
+// ===== 留言管理 =====
+export function getMessageList(params) {
+  return crud({ url: '/messages/list', method: 'get', params })
+}
+
+export function checkDoneMessages(ids) {
+  return crud({ url: '/messages/checkDone', method: 'post', data: ids, headers: { 'Content-Type': 'application/json' } })
+}
+
+export function replyMessage(data) {
+  return crud({ url: '/messages/reply', method: 'post', params: data })
+}
+
+export function deleteMessage(ids) {
+  return crud({ url: '/messages/delete', method: 'post', data: ids, headers: { 'Content-Type': 'application/json' } })
 }
 
 // ===== 链接管理 =====

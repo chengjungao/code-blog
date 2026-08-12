@@ -114,7 +114,7 @@ public class BlogServiceImpl implements BlogService {
     public Boolean deleteBatch(Integer[] ids) {
     	if (blogMapper.deleteBatch(ids) > 0) {
     		String[] blogIds = new String[ids.length]; 
-    		for(int i = 0; i <= ids.length ; i ++) {
+    		for(int i = 0; i < ids.length ; i ++) {
     			blogIds[i] = String.valueOf(ids[i]);
     		}
     		blogSolrServer.delete(blogIds);
@@ -292,11 +292,21 @@ public class BlogServiceImpl implements BlogService {
     @Override
     public PageResult getBlogsPageBySearch(String keyword, int page) {
         if (page > 0 && PatternUtil.validKeyword(keyword)) {
-        	PageResult pageResultTemp = blogSolrServer.search(keyword, page, 9);
-            @SuppressWarnings("unchecked")
-			List<BlogListVO> blogListVOS = getBlogListVOsByBlogs((List<Blog>) pageResultTemp.getList());
-            pageResultTemp.setList(blogListVOS);
-            return pageResultTemp;
+            int rows = 9;
+            int start = (page - 1) * rows;
+            try {
+                PageResult pageResultTemp = blogSolrServer.search(keyword, page, rows);
+                @SuppressWarnings("unchecked")
+                List<BlogListVO> blogListVOS = getBlogListVOsByBlogs((List<Blog>) pageResultTemp.getList());
+                pageResultTemp.setList(blogListVOS);
+                return pageResultTemp;
+            } catch (Exception e) {
+                // Solr 不可用时降级到数据库 LIKE 搜索
+                List<Blog> blogList = blogMapper.searchByKeyword(keyword, start, rows);
+                int total = blogMapper.getSearchCount(keyword);
+                List<BlogListVO> blogListVOS = getBlogListVOsByBlogs(blogList);
+                return new PageResult(blogListVOS, total, rows, page);
+            }
         }
         return null;
     }
@@ -322,9 +332,9 @@ public class BlogServiceImpl implements BlogService {
 	        if (blog == null || (filter && blog.getBlogStatus() != 1)) {
 	        	return null;
 	        }
-            //增加浏览量
+            //增加浏览量（原子更新，避免并发问题）
+            blogMapper.incrementBlogViews(blog.getBlogId());
             blog.setBlogViews(blog.getBlogViews() + 1);
-            blogMapper.updateByPrimaryKey(blog);
             BlogDetailVO blogDetailVO = new BlogDetailVO();
             BeanUtils.copyProperties(blog, blogDetailVO);
             blogDetailVO.setBlogContent(MarkDownUtil.mdToHtml(blogDetailVO.getBlogContent()));
@@ -333,7 +343,7 @@ public class BlogServiceImpl implements BlogService {
                 blogCategory = new BlogCategory();
                 blogCategory.setCategoryId(0);
                 blogCategory.setCategoryName("默认分类");
-                blogCategory.setCategoryIcon("/admin/dist/img/category/00.png");
+                blogCategory.setCategoryIcon("");
             }
             //分类信息
             blogDetailVO.setBlogCategoryIcon(blogCategory.getCategoryIcon());

@@ -39,4 +39,10 @@ public interface BlogMapper {
 
     int updateBlogCategorys(@Param("categoryName") String categoryName, @Param("categoryId") Integer categoryId, @Param("ids")Integer[] ids);
 
+    int incrementBlogViews(@Param("blogId") Long blogId);
+
+    List<Blog> searchByKeyword(@Param("keyword") String keyword, @Param("start") int start, @Param("limit") int limit);
+
+    int getSearchCount(@Param("keyword") String keyword);
+
 }

@@ -32,6 +32,12 @@ deploy/README.md
 LICENSE
 README.md
 
+# Sensitive files - NEVER include in Docker image
+**/application-local.yml
+**/application-local.yaml
+**/*local*.yml
+**/*local*.yaml
+
 # Misc
 *.log
 *.tmp

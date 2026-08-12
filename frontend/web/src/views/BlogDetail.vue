@@ -3,9 +3,9 @@
     <article class="detail-card">
       <h1 class="detail-title">{{ blog.blogTitle }}</h1>
       <div class="detail-meta">
-        <span>📅 {{ formatDate(blog.createTime) }}</span>
-        <span>💬 {{ blog.commentCount || 0 }} 条评论</span>
-        <span>👁️ {{ blog.blogViews }} 浏览</span>
+        <span>{{ formatDate(blog.createTime) }}</span>
+        <span>{{ blog.commentCount || 0 }} 条评论</span>
+        <span>{{ blog.blogViews }} 次阅读</span>
       </div>
       <div class="detail-tags" v-if="blog.blogTags?.length">
         <router-link v-for="tag in blog.blogTags" :key="tag" :to="'/tag/' + tag + '/1'" class="detail-tag">
@@ -15,12 +15,12 @@
       <div class="markdown-body" v-html="renderedContent"></div>
 
       <div class="copyright-notice">
-        本站文章除注明转载/出处外，皆为作者原创，欢迎转载，但未经作者同意必须保留此段声明。
+        本站笔记除注明转载/出处外，皆为作者原创；转载时请保留来源说明。
       </div>
 
       <!-- 评论列表 -->
       <section class="comments-section" id="comments" v-if="comments?.list?.length">
-        <h3>💬 评论 ({{ comments.totalCount }})</h3>
+        <h3>评论 ({{ comments.totalCount }})</h3>
         <div class="comment-item" v-for="c in comments.list" :key="c.commentId">
           <img class="comment-avatar" :src="AVATAR" alt="avatar" />
           <div class="comment-body">
@@ -59,7 +59,7 @@
 
       <!-- 评论表单 -->
       <section class="comment-form" v-if="blog.enableComment === 0">
-        <h3>✏️ 添加评论</h3>
+        <h3>添加评论</h3>
         <form @submit.prevent="submitComment">
           <div class="form-row">
             <input v-model="form.commentator" placeholder="* 怎么称呼你" required />
@@ -78,7 +78,7 @@
       </section>
     </article>
   </div>
-  <div v-else class="empty-state">文章不存在或已删除</div>
+  <div v-else class="empty-state">笔记不存在或已删除</div>
 </template>
 
 <script setup>
@@ -122,7 +122,7 @@ const formatDate = (d) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-const AVATAR = '/blog/default/img/avatar.png'
+const AVATAR = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect fill="#e8f0ee" width="40" height="40" rx="4"/><circle cx="20" cy="15" r="6" fill="#0f766e"/><path d="M8 36c0-6.6 5.4-12 12-12s12 5.4 12 12" fill="#0f766e"/></svg>')
 const refreshCaptcha = () => {
   captchaUrl.value = '/common/kaptcha?d=' + Date.now()
 }
@@ -179,11 +179,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.blog-detail {
+  max-width: var(--content-width);
+  margin: 0 auto;
+}
+
 .detail-card {
   background: var(--color-card);
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
-  padding: 40px 36px;
+  padding: 48px 44px;
 }
 .detail-title {
   font-size: 26px;
@@ -324,5 +329,11 @@ onMounted(() => {
 @media (max-width: 768px) {
   .detail-card { padding: 24px 16px; }
   .form-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1200px) {
+  .blog-detail {
+    max-width: 100%;
+  }
 }
 </style>

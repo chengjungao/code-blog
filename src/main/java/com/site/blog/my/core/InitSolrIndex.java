@@ -22,9 +22,13 @@ public class InitSolrIndex implements ApplicationRunner {
 
 	@Override
 	public void run(ApplicationArguments args) throws Exception {
-		List<Blog> blogs =  blogMapper.findAll();
-		blogSolrServer.deleteAll();
-		blogSolrServer.add(blogs);
+		try {
+			List<Blog> blogs =  blogMapper.findAll();
+			blogSolrServer.deleteAll();
+			blogSolrServer.add(blogs);
+		} catch (Exception e) {
+			System.err.println("[WARN] Solr index initialization skipped: " + e.getMessage());
+		}
 	}
 
 }

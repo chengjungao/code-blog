@@ -1,4 +1,4 @@
-import request from '../utils/request'
+import request, { chatRequest } from '../utils/request'
 
 export const fetchConfig = () => request.get('/config')
 
@@ -20,3 +20,10 @@ export const fetchSearchBlogs = (keyword, page = 1) => request.get(`/search/${ke
 export const fetchLinks = () => request.get('/links')
 
 export const submitComment = (data) => request.post('/comment', data)
+
+export const fetchMessages = (page = 1) => request.get(`/messages/${page}`)
+
+export const submitMessage = (data) => request.post('/message', data)
+
+export const assistantChat = (message, history = []) =>
+  chatRequest.post('/assistant', { message, history })

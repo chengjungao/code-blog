@@ -22,12 +22,19 @@ public class BlogSolrServerImpl implements BlogSolrServer {
 	String queryStr = "default_search:(%s)";
 	
 	public BlogSolrServerImpl(@Value("${solr.home:}")String solrHome) {
-		this.solrServer = new EmbeddedSolrServer(Paths.get(solrHome), "blog");
+		try {
+			this.solrServer = new EmbeddedSolrServer(Paths.get(solrHome), "blog");
+		} catch (Exception e) {
+			// Solr 初始化失败时记录警告，应用仍可启动（搜索降级到数据库 LIKE）
+			System.err.println("[WARN] Solr initialization failed, search will fall back to DB: " + e.getMessage());
+			this.solrServer = null;
+		}
 	}
 	
 	
 	@Override
 	public void add(List<Blog> blogs) {
+		if (solrServer == null) return;
 		try {
 			for (Blog blog : blogs) {
 				blog.setId(String.valueOf(blog.getBlogId()));
@@ -41,6 +48,7 @@ public class BlogSolrServerImpl implements BlogSolrServer {
 
 	@Override
 	public PageResult search(String keyword, int page, int rows) {
+		if (solrServer == null) throw new RuntimeException("Solr not available");
 		SolrQuery params = new SolrQuery(String.format(queryStr, keyword));
 		params.addFilterQuery("blogStatus:1");
 		params.addFilterQuery("isDeleted:0");
@@ -57,6 +65,7 @@ public class BlogSolrServerImpl implements BlogSolrServer {
 
 	@Override
 	public void add(Blog blog) {
+		if (solrServer == null) return;
 		try {
 			blog.setId(String.valueOf(blog.getBlogId()));
 			solrServer.addBean(blog);
@@ -68,6 +77,7 @@ public class BlogSolrServerImpl implements BlogSolrServer {
 
 	@Override
 	public void delete(String... id) {
+		if (solrServer == null) return;
 		try {
 			solrServer.deleteById(Arrays.asList(id));
 			solrServer.commit();
@@ -78,6 +88,7 @@ public class BlogSolrServerImpl implements BlogSolrServer {
 
 	@Override
 	public void deleteAll() {
+		if (solrServer == null) return;
 		try {
 			solrServer.deleteByQuery("*:*");
 			solrServer.commit();

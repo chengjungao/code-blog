@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [vue()],
   base: '/admin/',
   server: {
-    port: 3000,
+    port: 3001,
     proxy: {
       '/admin/api': {
         target: 'http://localhost:28083',
@@ -24,6 +24,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/admin/comments': {
+        target: 'http://localhost:28083',
+        changeOrigin: true,
+      },
+      '/admin/messages': {
         target: 'http://localhost:28083',
         changeOrigin: true,
       },

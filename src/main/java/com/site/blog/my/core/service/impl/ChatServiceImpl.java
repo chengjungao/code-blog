@@ -123,4 +123,62 @@ public class ChatServiceImpl implements ChatService {
 
         return new HttpEntity<>(requestBody.toString(), headers);
     }
+
+    private static final String ASSISTANT_SYSTEM_PROMPT =
+        "你是程军高的智能分身，在「拾光集」个人网站上与访客对话。你就是程军高本人。\n\n"
+        + "【关于程军高】\n"
+        + "- 搜索架构师 / AI 搜索系统工程师，9 年 Java 经验，6 年架构与团队管理经验\n"
+        + "- 在 Newegg 主导电商搜索平台架构（日均 PV 1500 万），覆盖 Solr 引擎、索引系统、召回与排序、Query 理解\n"
+        + "- 2023 年切入 AI 方向：用 Langchain + Milvus + ChatGPT 构建 AI Shopping Assistant\n"
+        + "- 近两年专注 AI 搜索：双塔召回、大模型微调、Agent 开发、MCP 平台建设\n"
+        + "- 技术栈：Java/Scala/Python, Spring Cloud, Hadoop/Spark/Flink/Kafka, Solr/ES/Milvus, Docker/K8S\n"
+        + "- 持有 PMP 证书，担任过 Scrum Master\n"
+        + "- 坐标上海，邮箱 chengjungao@foxmail.com\n\n"
+        + "【对话规则】\n"
+        + "- 始终以第一人称回答，你就是程军高\n"
+        + "- 语气专业但随和，像和朋友喝咖啡时聊天\n"
+        + "- 回答控制在 300 字以内，简洁有料\n"
+        + "- 技术问题可以适度展开，但不编造没有的经历\n"
+        + "- 不确定或不知道的事直接说不知道，不要瞎编\n"
+        + "- 需要联系时引导到邮箱 chengjungao@foxmail.com\n"
+        + "- 用纯文本回答，不要使用 markdown 格式标记";
+
+    @Override
+    public String assistantChat(String content, String historyJson) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            headers.set("Authorization", "Bearer " + visionToken);
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("model", chatModel);
+            requestBody.put("temperature", 0.6);
+            requestBody.put("max_tokens", 512);
+            requestBody.put("enable_thinking", false);
+
+            JSONArray messages = new JSONArray();
+            messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", ASSISTANT_SYSTEM_PROMPT));
+
+            if (historyJson != null && !historyJson.trim().isEmpty()) {
+                JSONArray history = JSON.parseArray(historyJson);
+                for (int i = 0; i < history.size(); i++) {
+                    JSONObject msg = history.getJSONObject(i);
+                    messages.add(new JSONObject()
+                        .fluentPut("role", msg.getString("role"))
+                        .fluentPut("content", msg.getString("content")));
+                }
+            }
+
+            messages.add(new JSONObject().fluentPut("role", "user").fluentPut("content", content));
+            requestBody.put("messages", messages);
+
+            HttpEntity<String> entity = new HttpEntity<>(requestBody.toString(), headers);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            JSONObject jsonObject = JSON.parseObject(response.getBody());
+            return jsonObject.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content");
+
+        } catch (Exception e) {
+            return "分身暂时开小差了，稍后再试一下吧～";
+        }
+    }
 }

@@ -3,8 +3,8 @@
     <!-- 左侧菜单 -->
     <el-aside width="220px" class="sidebar">
       <div class="logo">
-        <span class="logo-emoji">🗡️</span>
-        <h1>代码江湖</h1>
+        <span class="logo-emoji">CG</span>
+        <h1>个人品牌站</h1>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -22,10 +22,10 @@
         <el-sub-menu index="/blog">
           <template #title>
             <el-icon><Document /></el-icon>
-            <span>博客管理</span>
+            <span>技术笔记</span>
           </template>
-          <el-menu-item index="/blog/list">博客列表</el-menu-item>
-          <el-menu-item index="/blog/edit">发布博客</el-menu-item>
+          <el-menu-item index="/blog/list">笔记列表</el-menu-item>
+          <el-menu-item index="/blog/edit">发布笔记</el-menu-item>
         </el-sub-menu>
         
         <el-menu-item index="/category">
@@ -41,6 +41,11 @@
         <el-menu-item index="/comment">
           <el-icon><ChatDotRound /></el-icon>
           <span>评论管理</span>
+        </el-menu-item>
+
+        <el-menu-item index="/message">
+          <el-icon><Bell /></el-icon>
+          <span>留言管理</span>
         </el-menu-item>
         
         <el-menu-item index="/link">
@@ -156,7 +161,16 @@ const handleCommand = async (command) => {
 }
 
 .logo-emoji {
-  font-size: 22px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: #2e7d32;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .logo h1 {

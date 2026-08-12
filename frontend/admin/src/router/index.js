@@ -22,19 +22,19 @@ const routes = [
         path: 'blog/edit',
         name: 'BlogEdit',
         component: () => import('../views/BlogEdit.vue'),
-        meta: { title: '发布博客', icon: 'Edit' }
+        meta: { title: '发布笔记', icon: 'Edit' }
       },
       {
         path: 'blog/edit/:id',
         name: 'BlogEditId',
         component: () => import('../views/BlogEdit.vue'),
-        meta: { title: '编辑博客', icon: 'Edit' }
+        meta: { title: '编辑笔记', icon: 'Edit' }
       },
       {
         path: 'blog/list',
         name: 'BlogList',
         component: () => import('../views/BlogList.vue'),
-        meta: { title: '博客管理', icon: 'Document' }
+        meta: { title: '技术笔记', icon: 'Document' }
       },
       {
         path: 'category',
@@ -53,6 +53,12 @@ const routes = [
         name: 'Comment',
         component: () => import('../views/Comment.vue'),
         meta: { title: '评论管理', icon: 'ChatDotRound' }
+      },
+      {
+        path: 'message',
+        name: 'Message',
+        component: () => import('../views/Message.vue'),
+        meta: { title: '留言管理', icon: 'Bell' }
       },
       {
         path: 'link',
@@ -84,7 +90,7 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
   if (to.meta.title) {
-    document.title = to.meta.title + ' - 博客管理'
+    document.title = to.meta.title + ' - 个人品牌站管理'
   }
   
   const token = localStorage.getItem('token')

@@ -323,4 +323,29 @@
         </foreach>
         and is_deleted =0
     </update>
+
+    <update id="incrementBlogViews">
+        update tb_blog set blog_views = blog_views + 1
+        where blog_id = #{blogId,jdbcType=BIGINT} and is_deleted = 0
+    </update>
+
+    <select id="searchByKeyword" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from tb_blog
+        where is_deleted = 0 and blog_status = 1
+        and (blog_title like CONCAT('%',#{keyword},'%' )
+             or blog_category_name like CONCAT('%',#{keyword},'%' )
+             or blog_tags like CONCAT('%',#{keyword},'%' ))
+        order by blog_id desc
+        limit #{start},#{limit}
+    </select>
+
+    <select id="getSearchCount" resultType="int">
+        select count(*) from tb_blog
+        where is_deleted = 0 and blog_status = 1
+        and (blog_title like CONCAT('%',#{keyword},'%' )
+             or blog_category_name like CONCAT('%',#{keyword},'%' )
+             or blog_tags like CONCAT('%',#{keyword},'%' ))
+    </select>
 </mapper>

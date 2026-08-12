@@ -1,26 +1,20 @@
 <template>
   <footer class="site-footer">
     <div class="footer-inner">
-      <div class="footer-col" v-if="config.footerAbout">
-        <h4>📌 关于</h4>
-        <p>{{ config.footerAbout }}</p>
+      <div>
+        <strong>{{ config.websiteName || '拾光集' }}</strong>
+        <p>{{ config.footerAbout || '程军高的个人空间。写搜索架构和 AI，也写做菜和读书。' }}</p>
       </div>
-      <div class="footer-col" v-if="config.footerICP">
-        <h4>📄 备案</h4>
-        <p>{{ config.footerICP }}</p>
+      <div class="footer-links">
+        <router-link to="/portfolio">作品集</router-link>
+        <router-link to="/notes">技术笔记</router-link>
+        <router-link to="/life">生活杂记</router-link>
+        <router-link to="/message">留言板</router-link>
+        <a href="https://github.com/chengjungao" target="_blank" rel="noreferrer">GitHub</a>
       </div>
-      <div class="footer-col" v-if="config.footerCopyRight">
-        <h4>©️ 版权</h4>
-        <p>{{ config.footerCopyRight }}</p>
-      </div>
-      <div class="footer-col" v-if="config.footerPoweredBy">
-        <h4>⚡ Powered By</h4>
-        <p>
-          <a v-if="config.footerPoweredByURL" :href="config.footerPoweredByURL" target="_blank">
-            {{ config.footerPoweredBy }}
-          </a>
-          <span v-else>{{ config.footerPoweredBy }}</span>
-        </p>
+      <div class="footer-meta">
+        <p v-if="config.footerICP">{{ config.footerICP }}</p>
+        <p>{{ config.footerCopyRight || '© 拾光集 · 程军高' }}</p>
       </div>
     </div>
   </footer>
@@ -32,27 +26,62 @@ defineProps({ config: { type: Object, default: () => ({}) } })
 
 <style scoped>
 .site-footer {
-  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
-  border-top: 1px solid #d7e8d4;
-  margin-top: 48px;
+  margin-top: 72px;
+  border-top: 1px solid var(--color-border);
+  background: #f5f1e8;
 }
+
 .footer-inner {
-  max-width: 1100px;
+  max-width: var(--max-width);
   margin: 0 auto;
-  padding: 32px 20px;
+  padding: 34px 24px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 24px;
+  grid-template-columns: 1.2fr auto 1fr;
+  gap: 28px;
+  align-items: start;
 }
-.footer-col h4 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-primary);
+
+.footer-inner strong {
+  display: block;
   margin-bottom: 8px;
+  color: var(--color-text);
+  font-size: 16px;
 }
-.footer-col p {
+
+.footer-inner p {
+  margin: 0;
+  color: var(--color-subtle);
   font-size: 13px;
-  color: var(--color-text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.footer-links a {
+  color: var(--color-subtle);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.footer-links a:hover {
+  color: var(--color-text);
+}
+
+.footer-meta {
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .footer-inner {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-meta {
+    text-align: left;
+  }
 }
 </style>

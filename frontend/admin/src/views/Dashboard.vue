@@ -19,8 +19,8 @@
         <el-card class="welcome-card" shadow="never">
           <div class="welcome-inner">
             <div class="welcome-text">
-              <h3>⚔️ 欢迎回来，{{ username }}</h3>
-              <p>欢迎使用代码江湖博客后台管理系统，在这里管理您的博客内容。</p>
+              <h3>欢迎回来，{{ username }}</h3>
+              <p>这里用于管理个人品牌网站的技术笔记、分类、标签、评论和基础配置。</p>
             </div>
           </div>
         </el-card>
@@ -33,10 +33,10 @@
 import { ref, onMounted } from 'vue'
 import { getDashboardData } from '../api/admin'
 
-const username = ref(localStorage.getItem('username') || '大侠')
+const username = ref(localStorage.getItem('username') || 'Admin')
 
 const statCards = [
-  { key: 'blogCount', label: '文章总数', icon: 'Document', color: '#43a047' },
+  { key: 'blogCount', label: '笔记总数', icon: 'Document', color: '#2e7d32' },
   { key: 'commentCount', label: '评论总数', icon: 'ChatDotRound', color: '#26a69a' },
   { key: 'categoryCount', label: '分类总数', icon: 'Folder', color: '#7cb342' },
   { key: 'tagCount', label: '标签总数', icon: 'PriceTag', color: '#8bc34a' },

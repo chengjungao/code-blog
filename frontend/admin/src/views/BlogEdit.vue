@@ -1,14 +1,14 @@
 <template>
   <div class="blog-edit">
     <div class="page-header">
-      <h3>{{ isEdit ? '编辑文章' : '发布文章' }}</h3>
+      <h3>{{ isEdit ? '编辑技术笔记' : '发布技术笔记' }}</h3>
       <el-button @click="router.back()">返回列表</el-button>
     </div>
 
     <el-card>
       <el-form :model="form" label-width="80px">
-        <el-form-item label="文章标题" required>
-          <el-input v-model="form.blogTitle" placeholder="请输入文章标题" />
+        <el-form-item label="笔记标题" required>
+          <el-input v-model="form.blogTitle" placeholder="请输入笔记标题" />
         </el-form-item>
 
         <el-row :gutter="20">
@@ -35,7 +35,7 @@
           <el-input v-model="form.blogSubUrl" placeholder="如: springboot-mybatis，默认为ID" />
         </el-form-item>
 
-        <el-form-item label="文章内容" required>
+        <el-form-item label="笔记内容" required>
           <MdEditor
             v-model="form.blogContent"
             :style="{ height: '520px', width: '100%' }"
@@ -70,7 +70,7 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="文章状态">
+            <el-form-item label="笔记状态">
               <el-radio-group v-model="form.blogStatus">
                 <el-radio :value="1">发布</el-radio>
                 <el-radio :value="0">草稿</el-radio>
@@ -86,7 +86,7 @@
         </el-row>
 
         <el-form-item>
-          <el-button type="primary" @click="handleSave" :loading="saving">保存文章</el-button>
+          <el-button type="primary" @click="handleSave" :loading="saving">保存笔记</el-button>
           <el-button @click="router.back()">取消</el-button>
         </el-form-item>
       </el-form>
@@ -156,8 +156,12 @@ const handleUpload = async (file) => {
 }
 
 const randomCover = () => {
-  const idx = Math.floor(Math.random() * 40) + 1
-  form.value.blogCoverImage = `/admin/dist/img/rand/${idx}.jpg`
+  const colors = ['0f766e', 'b95c3d', '2563eb', '7c3aed', 'db2777', 'ea580c', '16a34a', '0891b2']
+  const c1 = colors[Math.floor(Math.random() * colors.length)]
+  const c2 = colors[Math.floor(Math.random() * colors.length)]
+  form.value.blogCoverImage = `data:image/svg+xml,` + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#${c1}"/><stop offset="1" stop-color="#${c2}"/></linearGradient></defs><rect fill="url(#g)" width="1200" height="400"/></svg>`
+  )
 }
 
 /** Markdown 编辑器内图片上传（粘贴/拖拽） */
@@ -177,7 +181,7 @@ const handleEditorUpload = async (files, callback) => {
 
 const handleSave = async () => {
   if (!form.value.blogTitle) {
-    return ElMessage.warning('请输入文章标题')
+    return ElMessage.warning('请输入笔记标题')
   }
   saving.value = true
   try {

@@ -6,9 +6,9 @@
 
     <div class="blog-grid" v-if="blogs.length">
       <article class="blog-card" v-for="blog in blogs" :key="blog.blogId">
-        <router-link :to="'/blog/' + blog.blogId" class="card-cover">
+        <router-link :to="'/notes/' + blog.blogId" class="card-cover">
           <img v-if="blog.blogCoverImage" :src="blog.blogCoverImage" :alt="blog.blogTitle" />
-          <div v-else class="cover-placeholder">🗡️</div>
+          <div v-else class="cover-placeholder">{{ getInitial(blog.blogTitle) }}</div>
         </router-link>
         <div class="card-body">
           <div class="card-category">
@@ -18,33 +18,33 @@
             </router-link>
           </div>
           <h3 class="card-title">
-            <router-link :to="'/blog/' + blog.blogId">{{ blog.blogTitle }}</router-link>
+            <router-link :to="'/notes/' + blog.blogId">{{ blog.blogTitle }}</router-link>
           </h3>
         </div>
       </article>
     </div>
-    <div v-else class="empty-state">暂无相关文章</div>
+    <div v-else class="empty-state">暂无相关笔记</div>
 
     <!-- 侧边栏 -->
     <aside class="list-sidebar">
       <div class="sidebar-section">
-        <h4>🔥 点击最多</h4>
+        <h4>高频阅读</h4>
         <ul class="sidebar-list">
           <li v-for="b in hotBlogs" :key="b.blogId">
-            <router-link :to="'/blog/' + b.blogId">{{ b.blogTitle }}</router-link>
+            <router-link :to="'/notes/' + b.blogId">{{ b.blogTitle }}</router-link>
           </li>
         </ul>
       </div>
       <div class="sidebar-section">
-        <h4>🆕 最新发布</h4>
+        <h4>最新发布</h4>
         <ul class="sidebar-list">
           <li v-for="b in newBlogs" :key="b.blogId">
-            <router-link :to="'/blog/' + b.blogId">{{ b.blogTitle }}</router-link>
+            <router-link :to="'/notes/' + b.blogId">{{ b.blogTitle }}</router-link>
           </li>
         </ul>
       </div>
       <div class="sidebar-section">
-        <h4>🏷️ 标签</h4>
+        <h4>标签</h4>
         <div class="tag-cloud">
           <router-link v-for="t in hotTags" :key="t.tagName" :to="'/tag/' + t.tagName + '/1'" class="tag-item">
             {{ t.tagName }}({{ t.tagCount }})
@@ -88,11 +88,13 @@ const totalPage = ref(1)
 const keyword = ref('')
 
 const listTitle = computed(() => {
-  if (route.name === 'Category') return '分类文章'
-  if (route.name === 'Tag') return '标签文章'
+  if (route.name === 'Category') return '分类笔记'
+  if (route.name === 'Tag') return '标签笔记'
   if (route.name === 'Search') return '搜索结果'
-  return '文章列表'
+  return '技术笔记'
 })
+
+const getInitial = (title = '') => title.trim().slice(0, 1) || 'N'
 
 const pageNumbers = computed(() => {
   const pages = []
@@ -151,7 +153,7 @@ onMounted(() => loadData())
 
 .blog-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 .blog-card {
@@ -223,10 +225,14 @@ onMounted(() => loadData())
 .sidebar-list a:hover { color: var(--color-primary); }
 
 .tag-cloud { display: flex; flex-wrap: wrap; gap: 4px; }
-.tag-item { font-size: 11px; padding: 2px 8px; background: #f1f8e9; border-radius: 20px; color: var(--color-text-secondary); }
-.tag-item:hover { background: #c8e6c9; color: var(--color-primary); }
+.tag-item { font-size: 11px; padding: 2px 8px; background: var(--color-surface-strong); border-radius: 20px; color: var(--color-text-secondary); }
+.tag-item:hover { background: var(--color-accent-soft); color: var(--color-primary); }
 
 .empty-state { text-align: center; padding: 60px; color: var(--color-text-secondary); grid-column: 1; }
+
+@media (max-width: 1200px) {
+  .blog-grid { grid-template-columns: repeat(3, 1fr); }
+}
 
 @media (max-width: 900px) {
   .blog-list-page { grid-template-columns: 1fr; }

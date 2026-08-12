@@ -1,252 +1,515 @@
 <template>
-  <div class="home-layout">
-    <div class="home-main">
-      <!-- 博客卡片网格 -->
-      <div class="blog-grid" v-if="blogs.length">
-        <article class="blog-card" v-for="blog in blogs" :key="blog.blogId">
-          <router-link :to="'/blog/' + blog.blogId" class="card-cover">
-            <img v-if="blog.blogCoverImage" :src="blog.blogCoverImage" :alt="blog.blogTitle" />
-            <div v-else class="cover-placeholder">🗡️</div>
-          </router-link>
-          <div class="card-body">
-            <div class="card-category">
-              <router-link :to="'/category/' + blog.blogCategoryName + '/1'" class="category-link">
-                <img v-if="blog.blogCategoryIcon" :src="blog.blogCategoryIcon" class="category-icon" />
-                <span>{{ blog.blogCategoryName }}</span>
-              </router-link>
-            </div>
-            <h3 class="card-title">
-              <router-link :to="'/blog/' + blog.blogId">{{ blog.blogTitle }}</router-link>
-            </h3>
-          </div>
-        </article>
-      </div>
-      <div v-else class="empty-state">暂无文章</div>
-
-      <!-- 分页 -->
-      <ul class="pagination" v-if="totalPage > 1">
-        <li :class="{ disabled: currPage <= 1 }">
-          <a v-if="currPage > 1" :href="'/page/' + (currPage - 1)" @click.prevent="goPage(currPage - 1)">«</a>
-          <span v-else>«</span>
-        </li>
-        <li v-for="p in pageNumbers" :key="p" :class="{ active: p === currPage }">
-          <a v-if="p !== currPage" href="#" @click.prevent="goPage(p)">{{ p }}</a>
-          <span v-else>{{ p }}</span>
-        </li>
-        <li :class="{ disabled: currPage >= totalPage }">
-          <a v-if="currPage < totalPage" :href="'/page/' + (currPage + 1)" @click.prevent="goPage(currPage + 1)">»</a>
-          <span v-else>»</span>
-        </li>
-      </ul>
-    </div>
-
-    <!-- 侧边栏 -->
-    <aside class="home-sidebar">
-      <div class="sidebar-section">
-        <h4>🔥 点击最多</h4>
-        <ul class="sidebar-list">
-          <li v-for="b in hotBlogs" :key="b.blogId">
-            <router-link :to="'/blog/' + b.blogId">{{ b.blogTitle }}</router-link>
-          </li>
+  <div class="home-page">
+    <section class="hero-section">
+      <div class="hero-copy">
+        <span class="page-kicker">搜索架构 · AI 工程 · 生活笔记</span>
+        <h1>{{ profile.name }}，{{ profile.title }}</h1>
+        <p>{{ profile.summary }}</p>
+        <ul class="pill-list hero-focus">
+          <li v-for="item in profile.focus" :key="item">{{ item }}</li>
         </ul>
-      </div>
-      <div class="sidebar-section">
-        <h4>🆕 最新发布</h4>
-        <ul class="sidebar-list">
-          <li v-for="b in newBlogs" :key="b.blogId">
-            <router-link :to="'/blog/' + b.blogId">{{ b.blogTitle }}</router-link>
-          </li>
-        </ul>
-      </div>
-      <div class="sidebar-section">
-        <h4>🏷️ 标签栏</h4>
-        <div class="tag-cloud">
-          <router-link v-for="t in hotTags" :key="t.tagName" :to="'/tag/' + t.tagName + '/1'" class="tag-item">
-            {{ t.tagName }}({{ t.tagCount }})
-          </router-link>
+        <div class="button-row">
+          <router-link class="btn primary" to="/portfolio">查看作品集</router-link>
+          <router-link class="btn" to="/notes">阅读技术笔记</router-link>
         </div>
       </div>
-    </aside>
+
+      <div class="hero-visual" aria-label="AI 搜索系统能力图">
+        <img :src="heroImage" alt="搜索系统架构抽象图" />
+        <div class="pipeline">
+          <span>Query</span>
+          <span>Recall</span>
+          <span>Rerank</span>
+          <span>Answer</span>
+        </div>
+        <div class="visual-caption">
+          <strong>AI Search Stack</strong>
+          <p>从查询到答案，每一环都拆开揉碎了聊。</p>
+        </div>
+      </div>
+      <div class="hero-contact">
+        <a :href="'mailto:' + profile.email">{{ profile.email }}</a>
+        <span>{{ profile.location }}</span>
+      </div>
+    </section>
+
+    <section class="stats-bar">
+      <div class="stat-item" v-for="stat in profile.stats" :key="stat.label">
+        <strong>{{ stat.value }}</strong>
+        <span>{{ stat.label }}</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <span class="page-kicker">Capability Matrix</span>
+          <h2>能力矩阵</h2>
+        </div>
+        <p>不堆技能清单。按解决的问题分组，每个方向都带着项目证据和踩坑记录。</p>
+      </div>
+
+      <div class="capability-grid">
+        <article class="capability-card" v-for="capability in profile.capabilities" :key="capability.group">
+          <div class="capability-meta">
+            <span>{{ capability.group }}</span>
+            <small>{{ capability.level }}</small>
+          </div>
+          <p>{{ capability.description }}</p>
+          <ul>
+            <li v-for="item in capability.items" :key="item">{{ item }}</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="section about-section">
+      <div>
+        <span class="page-kicker">About</span>
+        <h2>个人简介</h2>
+      </div>
+      <div class="about-copy">
+        <p>
+          我叫程军高，9 年 Java 老兵，6 年架构和带团队。在 Newegg 搭了六年搜索平台——Solr 引擎、索引系统、召回和排序、Query 理解，日均扛着 1500 万 PV。手里有 PMP，也当了几年 Scrum Master。
+        </p>
+        <p>
+          2023 年开始往 AI 方向走，先用 Langchain 和 Milvus 给 Newegg 做了个 AI 购物助手。然后就一发不可收拾——双塔召回、大模型微调、Agent 工具链、MCP 平台，越扎越深。
+        </p>
+        <p>
+          这个网站是我的数字花园。技术笔记追求系统化、能复用；生活板块留点松弛感，记记做菜和读书。
+        </p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <span class="page-kicker">Selected Work</span>
+          <h2>精选作品</h2>
+        </div>
+        <router-link class="btn" to="/portfolio">全部作品</router-link>
+      </div>
+      <div class="featured-grid">
+        <article class="work-card" v-for="item in featuredWorks" :key="item.title">
+          <div class="work-top">
+            <span>{{ item.type }}</span>
+            <small>{{ item.status }}</small>
+          </div>
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.description }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <div>
+          <span class="page-kicker">Latest Notes</span>
+          <h2>最新技术笔记</h2>
+        </div>
+        <router-link class="btn" to="/notes">进入笔记</router-link>
+      </div>
+      <div class="note-list" v-if="latestNotes.length">
+        <router-link class="note-row" v-for="note in latestNotes" :key="note.blogId" :to="'/notes/' + note.blogId">
+          <span>{{ note.blogCategoryName || '技术笔记' }}</span>
+          <strong>{{ note.blogTitle }}</strong>
+        </router-link>
+      </div>
+      <div v-else class="empty-state">笔记正在整理中，很快上线。</div>
+    </section>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
 import { fetchIndex } from '../api/blog'
+import heroImage from '../assets/hero.png'
+import { portfolioItems, profile } from '../content/profile'
 
-const route = useRoute()
-const router = useRouter()
+const latestNotes = ref([])
+const featuredWorks = computed(() => portfolioItems.slice(0, 3))
 
-const blogs = ref([])
-const hotBlogs = ref([])
-const newBlogs = ref([])
-const hotTags = ref([])
-const currPage = ref(1)
-const totalPage = ref(1)
-
-const pageNumbers = computed(() => {
-  const pages = []
-  const start = Math.max(1, currPage.value - 2)
-  const end = Math.min(totalPage.value, currPage.value + 2)
-  for (let i = start; i <= end; i++) pages.push(i)
-  return pages
-})
-
-const goPage = (p) => {
-  if (p === 1) router.push('/')
-  else router.push('/page/' + p)
-}
-
-const loadData = async (page) => {
+onMounted(async () => {
   try {
-    const res = await fetchIndex(page)
-    const d = res.data || {}
-    const bp = d.blogPage || {}
-    blogs.value = bp.list || []
-    currPage.value = bp.currPage || 1
-    totalPage.value = bp.totalPage || 1
-    hotBlogs.value = d.hotBlogs || []
-    newBlogs.value = d.newBlogs || []
-    hotTags.value = d.hotTags || []
+    const res = await fetchIndex(1)
+    latestNotes.value = (res.data?.newBlogs || res.data?.blogPage?.list || []).slice(0, 5)
   } catch (e) {
-    console.error('加载失败', e)
+    console.error('加载最新技术笔记失败', e)
   }
-}
-
-watch(() => route.params.pageNum, (val) => {
-  loadData(val ? parseInt(val) : 1)
-}, { immediate: true })
-
-onMounted(() => {
-  if (!route.params.pageNum) loadData(1)
 })
 </script>
 
 <style scoped>
-.home-layout {
+.hero-section {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 24px;
-}
-.blog-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-.blog-card {
-  background: var(--color-card);
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  transition: transform 0.25s, box-shadow 0.25s;
-}
-.blog-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
-}
-.card-cover {
-  display: block;
-  height: 180px;
-  overflow: hidden;
-}
-.card-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.4s;
-}
-.blog-card:hover .card-cover img { transform: scale(1.05); }
-.cover-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
+  grid-template-columns: minmax(0, 1.1fr) minmax(380px, 0.9fr);
+  gap: 56px;
   align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
-  font-size: 40px;
+  min-height: 600px;
 }
-.card-body { padding: 16px; }
-.card-category { margin-bottom: 8px; }
-.category-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  background: #f1f8e9;
-  padding: 3px 10px;
-  border-radius: 20px;
-}
-.category-icon { height: 14px; width: 14px; }
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-  margin: 0;
-}
-.card-title a {
-  color: var(--color-text);
-}
-.card-title a:hover { color: var(--color-primary); }
 
-.home-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.hero-copy h1 {
+  margin-top: 12px;
+  max-width: 780px;
+  font-size: 58px;
+  line-height: 1.08;
+  letter-spacing: 0;
 }
-.sidebar-section {
-  background: var(--color-card);
-  border-radius: var(--radius);
+
+.hero-copy p {
+  max-width: 740px;
+  margin-top: 22px;
+  color: var(--color-subtle);
+  font-size: 18px;
+}
+
+.hero-focus {
+  margin-top: 22px;
+}
+
+.button-row {
+  margin-top: 30px;
+}
+
+.hero-visual {
+  position: relative;
+  min-height: 460px;
+  padding: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(238, 244, 241, 0.96)),
+    repeating-linear-gradient(90deg, transparent, transparent 36px, rgba(15, 118, 110, 0.05) 37px);
+  overflow: hidden;
+}
+
+.hero-visual img {
+  position: absolute;
+  right: 28px;
+  top: 20px;
+  width: 260px;
+  opacity: 0.88;
+}
+
+.pipeline {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  max-width: 260px;
+  margin-top: 42px;
+}
+
+.pipeline span {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  color: var(--color-text);
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+}
+
+.pipeline span:nth-child(2) {
+  margin-left: 36px;
+}
+
+.pipeline span:nth-child(3) {
+  margin-left: 72px;
+}
+
+.pipeline span:nth-child(4) {
+  margin-left: 108px;
+  background: var(--color-text);
+  color: #fff;
+}
+
+.visual-caption {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 26px;
+  z-index: 1;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-border);
+}
+
+.visual-caption strong {
+  color: var(--color-text);
+  font-size: 15px;
+}
+
+.visual-caption p {
+  margin-top: 6px;
+  color: var(--color-subtle);
+  font-size: 13px;
+}
+
+.capability-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.capability-card {
+  min-height: 288px;
   padding: 20px;
   border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
 }
-.sidebar-section h4 {
-  font-size: 15px;
+
+.capability-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.capability-meta span {
+  color: var(--color-text);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.capability-meta small {
+  color: var(--color-warm);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.capability-card p {
+  margin-top: 16px;
+  color: var(--color-subtle);
+  font-size: 14px;
+}
+
+.capability-card ul {
+  margin-top: 18px;
+  padding-left: 18px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.capability-card li + li {
+  margin-top: 7px;
+}
+
+.hero-contact {
+  margin-top: 18px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  font-size: 14px;
+}
+
+.hero-contact a {
+  color: var(--color-accent);
   font-weight: 600;
-  margin-bottom: 12px;
+}
+
+.hero-contact span {
+  color: var(--color-subtle);
+}
+
+.stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  padding: 28px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  border-right: 1px solid var(--color-border);
+}
+
+.stat-item:last-child {
+  border-right: none;
+}
+
+.stat-item strong {
+  font-size: 28px;
+  color: var(--color-text);
+  font-weight: 850;
+}
+
+.stat-item span {
+  font-size: 13px;
+  color: var(--color-subtle);
+}
+
+.about-section {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 56px;
+  padding: 40px 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.about-section h2 {
+  margin-top: 8px;
+  font-size: 28px;
+}
+
+.about-copy {
+  display: grid;
+  gap: 16px;
+  color: var(--color-subtle);
+  font-size: 16px;
+}
+
+.featured-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.work-card {
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.work-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--color-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.work-card h3 {
+  margin-top: 18px;
+  color: var(--color-text);
+  font-size: 19px;
+}
+
+.work-card p {
+  margin-top: 10px;
+  color: var(--color-subtle);
+  font-size: 14px;
+}
+
+.note-list {
+  display: grid;
+  border-top: 1px solid var(--color-border);
+}
+
+.note-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 18px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
 }
-.sidebar-list {
-  list-style: none;
-  padding: 0;
-}
-.sidebar-list li {
-  margin-bottom: 8px;
-}
-.sidebar-list a {
-  font-size: 14px;
-  color: var(--color-text-secondary);
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sidebar-list a:hover { color: var(--color-primary); }
 
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.note-row span {
+  color: var(--color-muted);
+  font-size: 13px;
 }
-.tag-item {
-  font-size: 12px;
-  padding: 3px 10px;
-  background: #f1f8e9;
-  border-radius: 20px;
-  color: var(--color-text-secondary);
+
+.note-row strong {
+  font-size: 16px;
 }
-.tag-item:hover { background: #c8e6c9; color: var(--color-primary); }
+
+.note-row:hover strong {
+  color: var(--color-accent);
+}
 
 .empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--color-text-secondary);
-  font-size: 15px;
+  padding: 34px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--color-muted);
+  background: var(--color-surface);
 }
 
-@media (max-width: 900px) {
-  .home-layout { grid-template-columns: 1fr; }
-  .blog-grid { grid-template-columns: 1fr; }
+@media (max-width: 1200px) {
+  .hero-section,
+  .about-section {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-section {
+    min-height: 0;
+  }
+
+  .capability-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .featured-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stats-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stat-item:nth-child(2) {
+    border-right: none;
+  }
+
+  .stat-item:nth-child(1),
+  .stat-item:nth-child(2) {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-copy h1 {
+    font-size: 38px;
+  }
+
+  .hero-visual {
+    min-height: 360px;
+    padding: 20px;
+  }
+
+  .hero-visual img {
+    width: 180px;
+  }
+
+  .pipeline span:nth-child(n) {
+    margin-left: 0;
+  }
+
+  .capability-grid,
+  .featured-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-item {
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    padding: 16px 0;
+  }
+
+  .stat-item:last-child {
+    border-bottom: none;
+  }
+
+  .note-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 </style>

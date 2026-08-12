@@ -58,6 +58,9 @@ RUN mkdir -p /opt/app/blog \
 # Copy Spring Boot JAR
 COPY --from=build-backend /app/target/my-blog-4.0.0-SNAPSHOT.jar /opt/app/blog/app.jar
 
+# Copy Solr config template (for first-start initialization)
+COPY src/main/resources/blog /opt/app/solr-template
+
 # Copy frontend builds
 COPY --from=build-admin /app/dist /usr/share/nginx/html/admin
 COPY --from=build-blog /app/dist /usr/share/nginx/html/blog
@@ -71,7 +74,7 @@ RUN sed -i '1s/^\xEF\xBB\xBF//' /etc/nginx/http.d/default.conf /etc/supervisor/c
  && sed -i 's/\r$//' /etc/nginx/http.d/default.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Write entrypoint.sh directly inside container (avoids BOM/CRLF from Windows COPY)
-RUN printf '#!/bin/sh\nset -e\necho "========================================="\necho "  Code-Blog Starting..."\necho "========================================="\nmkdir -p /var/blog/data /var/blog/solr\nexec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf\n' > /opt/entrypoint.sh \
+RUN printf '#!/bin/sh\nset -e\necho "========================================="\necho "  Code-Blog Starting..."\necho "========================================="\nmkdir -p /var/blog/data /var/blog/solr\n# Initialize Solr config on first start (volume is empty)\nif [ ! -f /var/blog/solr/solr.xml ]; then\n  echo "Initializing Solr config from template..."\n  cp -r /opt/app/solr-template/* /var/blog/solr/\nfi\nexec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf\n' > /opt/entrypoint.sh \
  && chmod +x /opt/entrypoint.sh
 
 # Remove default nginx config

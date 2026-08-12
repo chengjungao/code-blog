@@ -12,7 +12,7 @@
       <el-table :data="tableData" v-loading="loading" stripe>
         <el-table-column prop="tagId" label="ID" width="80" />
         <el-table-column prop="tagName" label="标签名称" />
-        <el-table-column prop="blogCount" label="文章数" width="100" align="center" />
+        <el-table-column prop="blogCount" label="笔记数" width="100" align="center" />
         <el-table-column prop="createTime" label="创建时间" width="170" />
         <el-table-column label="操作" width="100">
           <template #default="{ row }">
