@@ -70,6 +70,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchIndex } from '../api/blog'
+import { setPageMeta } from '../utils/seo'
 
 const route = useRoute()
 const router = useRouter()
@@ -96,6 +97,10 @@ const goPage = (p) => {
 }
 
 const loadData = async (page) => {
+  setPageMeta({
+    title: '技术笔记',
+    description: '搜索、AI、架构、工程实践——写下来才真正属于自己的。踩坑记录、系统设计和读书笔记。'
+  })
   try {
     const res = await fetchIndex(page)
     const d = res.data || {}

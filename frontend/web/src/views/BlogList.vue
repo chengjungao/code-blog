@@ -75,6 +75,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchCategoryBlogs, fetchTagBlogs, fetchSearchBlogs } from '../api/blog'
+import { setPageMeta } from '../utils/seo'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,6 +116,10 @@ const loadData = async () => {
   const page = parseInt(route.params.page) || 1
   currPage.value = page
   keyword.value = name
+  setPageMeta({
+    title: `${listTitle.value}${name ? '：' + name : ''}`,
+    description: `程军高关于「${name || '技术笔记'}」的笔记列表。`
+  })
   try {
     let res
     if (route.name === 'Category') res = await fetchCategoryBlogs(name, page)

@@ -85,6 +85,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchBlogDetail, fetchPageBySubUrl, submitComment as apiSubmitComment } from '../api/blog'
+import { setPageMeta, excerpt } from '../utils/seo'
 import MarkdownIt from 'markdown-it'
 
 const props = defineProps({ config: { type: Object, default: () => ({}) } })
@@ -168,6 +169,13 @@ const loadBlog = async () => {
     const data = res.data || {}
     blog.value = data.blog || data
     comments.value = data.comments || null
+    if (blog.value?.blogTitle) {
+      setPageMeta({
+        title: blog.value.blogTitle,
+        description: excerpt(blog.value.blogContent, 150),
+        url: window.location.origin + window.location.pathname
+      })
+    }
   } catch (e) { console.error(e) }
 }
 

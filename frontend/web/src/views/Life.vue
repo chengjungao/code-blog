@@ -38,6 +38,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { fetchCategoryBlogs } from '../api/blog'
+import { setPageMeta } from '../utils/seo'
 
 // 生活杂记对应的分类（与后台 tb_blog_category 中的分类名一致）
 const columns = ref([
@@ -46,6 +47,10 @@ const columns = ref([
 ])
 
 onMounted(async () => {
+  setPageMeta({
+    title: '生活杂记',
+    description: '程军高的生活记录——做菜、读书和日常观察，保留真实生活里的判断、趣味和节奏。'
+  })
   await Promise.all(columns.value.map(async (col) => {
     try {
       const res = await fetchCategoryBlogs(col.name, 1)

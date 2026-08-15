@@ -25,6 +25,8 @@ public interface BlogMapper {
     
     List<Blog> findAll();
 
+    List<Blog> findAllPublished();
+
     List<Blog> findBlogListByType(@Param("type") int type, @Param("limit") int limit, @Param("excludeCategoryNames") List<String> excludeCategoryNames);
 
     int getTotalBlogs(PageQueryUtil pageUtil);

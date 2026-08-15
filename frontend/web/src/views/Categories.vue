@@ -31,11 +31,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { fetchCategories } from '../api/blog'
+import { setPageMeta } from '../utils/seo'
 
 const categories = ref([])
 const hotTags = ref([])
 
 onMounted(async () => {
+  setPageMeta({
+    title: '笔记分类',
+    description: '按主题浏览程军高的技术笔记，也可通过标签追踪具体知识点。'
+  })
   try {
     const res = await fetchCategories()
     const d = res.data || {}

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# 屏蔽无 SEO 价值的页面
+Disallow: /search/
+Disallow: /message
+
+# 站点地图
+Sitemap: https://www.chengjungao.cn/sitemap.xml

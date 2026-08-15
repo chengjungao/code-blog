@@ -32,7 +32,16 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import { portfolioItems } from '../content/profile'
+import { setPageMeta } from '../utils/seo'
+
+onMounted(() => {
+  setPageMeta({
+    title: '作品集',
+    description: '从电商搜索平台到 AI 搜索系统，程军高近年主导和参与的核心项目，覆盖搜索架构、AI 应用、数据服务平台和广告系统。'
+  })
+})
 </script>
 
 <style scoped>
