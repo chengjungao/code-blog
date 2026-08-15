@@ -70,10 +70,10 @@
       </div>
       <div class="about-copy">
         <p>
-          我叫程军高，9 年 Java 老兵，6 年架构和带团队。在 Newegg 搭了六年搜索平台——Solr 引擎、索引系统、召回和排序、Query 理解，日均扛着 1500 万 PV。手里有 PMP，也当了几年 Scrum Master。
+          我叫程军高，11 年后端开发和架构老兵，6 年带团队。在某电商公司搭了快十年的搜索平台——从 Solr 引擎、索引系统到召回、排序、Query 理解，一路迭代到双塔召回和 AI Search，日均扛着 1500 万 PV。手里有 PMP，也当了几年 Scrum Master。
         </p>
         <p>
-          2023 年开始往 AI 方向走，先用 Langchain 和 Milvus 给 Newegg 做了个 AI 购物助手。然后就一发不可收拾——双塔召回、大模型微调、Agent 工具链、MCP 平台，越扎越深。
+          近一年把重心压到 Agent 和 MCP 平台上。从给某电商公司做 AI 购物助手入坑，到双塔召回、Gemma 微调、LangGraph 编排、MCP 协议落地，越扎越深。
         </p>
         <p>
           这个网站是我的数字花园。技术笔记追求系统化、能复用；生活板块留点松弛感，记记做菜和读书。

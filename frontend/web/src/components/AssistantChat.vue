@@ -7,11 +7,7 @@
       aria-label="打开智能分身"
       @click="open = true"
     >
-      <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2a7 7 0 0 0-7 7c0 1.9.8 3.6 2 4.8V18l3-1.5c.6.2 1.3.3 2 .3a7 7 0 0 0 7-7 7 7 0 0 0-7-7z" />
-        <circle cx="9.5" cy="9" r="0.8" fill="currentColor" />
-        <circle cx="14.5" cy="9" r="0.8" fill="currentColor" />
-      </svg>
+      <img src="/robot.png" class="chat-fab-icon" alt="智能分身" />
       <span class="fab-pulse"></span>
     </button>
 
@@ -101,7 +97,7 @@ const online = ref(true)
 
 const quickChips = [
   '你主要做什么技术方向？',
-  'Newegg 搜索平台有多大量级？',
+  '你主导的搜索平台有多大量级？',
   '双塔模型是什么？',
   '怎么联系你？'
 ]
@@ -139,8 +135,11 @@ const send = async (preset) => {
   try {
 
     const res = await assistantChat(content, JSON.stringify(history))
-    if (res && res.data) {
+    if (res && res.resultCode === 200 && res.data) {
       messages.value.push({ role: 'assistant', content: res.data })
+    } else if (res && res.message) {
+      // 后端返回的业务错误提示（如限流、参数异常）
+      messages.value.push({ role: 'assistant', content: res.message })
     } else {
       messages.value.push({ role: 'assistant', content: '分身暂时开小差了，稍后再试一下吧～' })
     }
@@ -179,7 +178,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-fab-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .chat-fab:hover {

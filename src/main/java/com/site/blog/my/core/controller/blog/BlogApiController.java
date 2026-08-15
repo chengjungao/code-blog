@@ -43,6 +43,8 @@ public class BlogApiController {
     private GuestbookMessageService guestbookMessageService;
     @Resource
     private ChatService chatService;
+    @Resource
+    private IpRateLimiter ipRateLimiter;
 
     /**
      * 获取网站配置
@@ -262,7 +264,12 @@ public class BlogApiController {
      * 智能分身 - 对话
      */
     @PostMapping("/assistant")
-    public Result assistant(@RequestBody Map<String, Object> body) {
+    public Result assistant(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        // 防爬：基于 IP 限流
+        String clientIp = getClientIp(request);
+        if (!ipRateLimiter.tryAcquire(clientIp)) {
+            return ResultGenerator.genFailResult("提问太频繁啦，请稍后再试～");
+        }
         String message = (String) body.get("message");
         String history = body.get("history") != null ? body.get("history").toString() : null;
         if (StringUtils.isEmpty(message)) {
@@ -272,6 +279,27 @@ public class BlogApiController {
             return ResultGenerator.genFailResult("消息过长，请精简后重试");
         }
         String reply = chatService.assistantChat(message.trim(), history);
-        return ResultGenerator.genSuccessResult(reply);
+        // 强转 Object，避免命中 genSuccessResult(String) 重载把内容塞进 message 字段
+        return ResultGenerator.genSuccessResult((Object) reply);
+    }
+
+    /**
+     * 获取客户端真实 IP（兼容 nginx 反向代理）
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+            // 多级代理时取第一个非 unknown 的 IP
+            int idx = ip.indexOf(',');
+            if (idx > 0) {
+                return ip.substring(0, idx).trim();
+            }
+            return ip.trim();
+        }
+        ip = request.getHeader("X-Real-IP");
+        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+            return ip.trim();
+        }
+        return request.getRemoteAddr();
     }
 }

@@ -41,6 +41,9 @@ public class BlogServiceImpl implements BlogService {
     @Autowired
     private BlogSolrServer blogSolrServer;
 
+    /** 生活类分类名（技术笔记列表查询时需排除，它们归入「生活杂记」页） */
+    private static final List<String> LIFE_CATEGORY_NAMES = new ArrayList<>(Arrays.asList("读书心得", "做菜笔记"));
+
     @Override
     @Transactional
     public String saveBlog(Blog blog) {
@@ -211,6 +214,7 @@ public class BlogServiceImpl implements BlogService {
         //每页8条
         params.put("limit", 8);
         params.put("blogStatus", 1);//过滤发布状态下的数据
+        params.put("excludeCategoryNames", LIFE_CATEGORY_NAMES);//排除生活类分类
         PageQueryUtil pageUtil = new PageQueryUtil(params);
         List<Blog> blogList = blogMapper.findBlogList(pageUtil);
         List<BlogListVO> blogListVOS = getBlogListVOsByBlogs(blogList);
@@ -222,7 +226,7 @@ public class BlogServiceImpl implements BlogService {
     @Override
     public List<SimpleBlogListVO> getBlogListForIndexPage(int type) {
         List<SimpleBlogListVO> simpleBlogListVOS = new ArrayList<>();
-        List<Blog> blogs = blogMapper.findBlogListByType(type, 9);
+        List<Blog> blogs = blogMapper.findBlogListByType(type, 9, LIFE_CATEGORY_NAMES);
         if (!CollectionUtils.isEmpty(blogs)) {
             for (Blog blog : blogs) {
                 SimpleBlogListVO simpleBlogListVO = new SimpleBlogListVO();
