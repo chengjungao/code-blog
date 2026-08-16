@@ -481,16 +481,32 @@ onMounted(async () => {
   }
 
   .hero-visual {
-    min-height: 360px;
+    min-height: 0;
     padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
   }
 
   .hero-visual img {
-    width: 180px;
+    position: static;
+    width: 160px;
+  }
+
+  .pipeline {
+    margin-top: 0;
+    width: 100%;
+    max-width: 100%;
   }
 
   .pipeline span:nth-child(n) {
     margin-left: 0;
+  }
+
+  .visual-caption {
+    position: static;
+    width: 100%;
   }
 
   .capability-grid,
