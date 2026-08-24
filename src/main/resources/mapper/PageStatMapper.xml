@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.site.blog.my.core.dao.PageStatMapper">
+    <resultMap id="BaseResultMap" type="com.site.blog.my.core.entity.PageStat">
+        <id column="id" jdbcType="BIGINT" property="id"/>
+        <result column="stat_date" jdbcType="VARCHAR" property="statDate"/>
+        <result column="page_path" jdbcType="VARCHAR" property="pagePath"/>
+        <result column="pv" jdbcType="INTEGER" property="pv"/>
+        <result column="uv" jdbcType="INTEGER" property="uv"/>
+        <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
+    </resultMap>
+
+    <!-- PV 累加 -->
+    <insert id="upsertPv" parameterType="com.site.blog.my.core.entity.PageStat">
+        insert into tb_page_stat (stat_date, page_path, pv, uv, create_time)
+        values (#{statDate,jdbcType=VARCHAR}, #{pagePath,jdbcType=VARCHAR}, #{pv,jdbcType=INTEGER}, 0, now())
+        on duplicate key update pv = pv + #{pv,jdbcType=INTEGER}
+    </insert>
+
+    <!-- UV 覆盖（内存中保留了当天全量去重 IP，size 即最新 UV） -->
+    <insert id="upsertUv" parameterType="com.site.blog.my.core.entity.PageStat">
+        insert into tb_page_stat (stat_date, page_path, pv, uv, create_time)
+        values (#{statDate,jdbcType=VARCHAR}, #{pagePath,jdbcType=VARCHAR}, 0, #{uv,jdbcType=INTEGER}, now())
+        on duplicate key update uv = #{uv,jdbcType=INTEGER}
+    </insert>
+
+    <!-- 每日 PV/UV 汇总 -->
+    <select id="selectDailySummary" resultType="map">
+        select stat_date as statdate, sum(pv) as pv, sum(uv) as uv
+        from tb_page_stat
+        where stat_date &gt;= #{startDate} and stat_date &lt;= #{endDate}
+        group by stat_date
+        order by stat_date asc
+    </select>
+
+    <!-- TOP 页面排行 -->
+    <select id="selectTopPages" resultType="map">
+        select page_path as pagepath, sum(pv) as pv, sum(uv) as uv
+        from tb_page_stat
+        where stat_date &gt;= #{startDate} and stat_date &lt;= #{endDate}
+        group by page_path
+        order by pv desc
+        limit #{limit}
+    </select>
+
+    <!-- PV/UV 总量 -->
+    <select id="selectTotalSummary" resultType="map">
+        select ifnull(sum(pv), 0) as pv, ifnull(sum(uv), 0) as uv
+        from tb_page_stat
+        where stat_date &gt;= #{startDate} and stat_date &lt;= #{endDate}
+    </select>
+</mapper>

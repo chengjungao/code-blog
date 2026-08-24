@@ -45,6 +45,8 @@ public class BlogApiController {
     private ChatService chatService;
     @Resource
     private IpRateLimiter ipRateLimiter;
+    @Resource
+    private VisitStatService visitStatService;
 
     /**
      * 获取网站配置
@@ -301,5 +303,21 @@ public class BlogApiController {
             return ip.trim();
         }
         return request.getRemoteAddr();
+    }
+
+    /**
+     * 页面访问统计埋点（实时数据只进内存，定时聚合写 DB）
+     */
+    @PostMapping("/stat")
+    public Result stat(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        String pagePath = body.get("pagePath") != null ? body.get("pagePath").toString() : null;
+        if (StringUtils.isEmpty(pagePath)) {
+            return ResultGenerator.genSuccessResult();
+        }
+        if (pagePath.length() > 200) {
+            pagePath = pagePath.substring(0, 200);
+        }
+        visitStatService.record(pagePath, getClientIp(request));
+        return ResultGenerator.genSuccessResult();
     }
 }

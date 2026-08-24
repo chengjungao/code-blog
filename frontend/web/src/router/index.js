@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { reportVisit } from '../api/blog'
 
 const routes = [
   { path: '/', name: 'Home', component: () => import('../views/Home.vue') },
@@ -24,6 +25,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior() { return { top: 0 } }
+})
+
+// 页面访问统计埋点（记录前台页面路径，用于访问分析）
+router.afterEach((to) => {
+  reportVisit(to.path)
 })
 
 export default router

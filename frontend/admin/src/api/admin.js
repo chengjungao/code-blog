@@ -41,6 +41,15 @@ export function getDashboardData() {
   })
 }
 
+// ===== 访问统计 =====
+export function getStatOverview(days = 14) {
+  return request({
+    url: '/stat',
+    method: 'get',
+    params: { days }
+  })
+}
+
 // ===== 验证码（直接访问后端） =====
 export function getKaptcha() {
   return axios.create({ baseURL: '', withCredentials: true }).get('/common/kaptcha', {

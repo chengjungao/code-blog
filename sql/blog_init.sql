@@ -190,3 +190,18 @@ CREATE TABLE IF NOT EXISTS `tb_message` (
   PRIMARY KEY (`message_id`),
   KEY `idx_message_status` (`message_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- 页面访问统计汇总表（Summary 数据，定时聚合写入）
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `tb_page_stat` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `stat_date` VARCHAR(10) NOT NULL COMMENT '统计日期 yyyy-MM-dd',
+  `page_path` VARCHAR(255) NOT NULL COMMENT '页面路径',
+  `pv` INT NOT NULL DEFAULT 0 COMMENT '浏览量',
+  `uv` INT NOT NULL DEFAULT 0 COMMENT '独立访客数（按 IP 去重）',
+  `create_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_date_page` (`stat_date`, `page_path`),
+  KEY `idx_stat_date` (`stat_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

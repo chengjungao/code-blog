@@ -19,6 +19,12 @@ const routes = [
         meta: { title: '仪表盘', icon: 'DataBoard' }
       },
       {
+        path: 'visit-stat',
+        name: 'VisitStat',
+        component: () => import('../views/VisitStat.vue'),
+        meta: { title: '访问统计', icon: 'TrendCharts' }
+      },
+      {
         path: 'blog/edit',
         name: 'BlogEdit',
         component: () => import('../views/BlogEdit.vue'),

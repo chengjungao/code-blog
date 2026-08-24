@@ -36,6 +36,8 @@ public class AdminApiController {
     private CommentService commentService;
     @Resource
     private ConfigService configService;
+    @Resource
+    private VisitStatService visitStatService;
 
     /**
      * 登录接口
@@ -96,6 +98,24 @@ public class AdminApiController {
         data.put("tagCount", tagService.getTotalTags());
         data.put("linkCount", linkService.getTotalLinks());
         return ResultGenerator.genSuccessResult(data);
+    }
+
+    /**
+     * 访问统计图表数据
+     * 参数：days（最近 N 天，默认 14）
+     */
+    @GetMapping("/stat")
+    @ResponseBody
+    public Result stat(@RequestParam(value = "days", required = false, defaultValue = "14") Integer days) {
+        if (days == null || days < 1) {
+            days = 14;
+        }
+        if (days > 90) {
+            days = 90;
+        }
+        String endDate = java.time.LocalDate.now().toString();
+        String startDate = java.time.LocalDate.now().minusDays(days - 1).toString();
+        return ResultGenerator.genSuccessResult(visitStatService.getStatOverview(startDate, endDate));
     }
 
     /**

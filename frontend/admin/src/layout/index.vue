@@ -18,6 +18,11 @@
           <el-icon><DataBoard /></el-icon>
           <span>仪表盘</span>
         </el-menu-item>
+
+        <el-menu-item index="/visit-stat">
+          <el-icon><TrendCharts /></el-icon>
+          <span>访问统计</span>
+        </el-menu-item>
         
         <el-sub-menu index="/blog">
           <template #title>

@@ -27,3 +27,7 @@ export const submitMessage = (data) => request.post('/message', data)
 
 export const assistantChat = (message, history = []) =>
   chatRequest.post('/assistant', { message, history })
+
+// 页面访问统计埋点（fire-and-forget，失败不影响页面）
+export const reportVisit = (pagePath) =>
+  request.post('/stat', { pagePath }).catch(() => {})
