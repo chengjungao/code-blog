@@ -163,11 +163,13 @@ public class BlogApiController {
      * 提交评论
      */
     @PostMapping("/comment")
-    public Result comment(HttpServletRequest request, HttpSession session,
-                          @RequestParam Long blogId, @RequestParam String verifyCode,
-                          @RequestParam String commentator, @RequestParam String email,
-                          @RequestParam(required = false) String websiteUrl,
-                          @RequestParam String commentBody) {
+    public Result comment(HttpServletRequest request, HttpSession session, @RequestBody Map<String, Object> body) {
+        String verifyCode = body.get("verifyCode") != null ? body.get("verifyCode").toString() : null;
+        Long blogId = body.get("blogId") != null ? Long.valueOf(body.get("blogId").toString()) : null;
+        String commentator = body.get("commentator") != null ? body.get("commentator").toString() : null;
+        String email = body.get("email") != null ? body.get("email").toString() : null;
+        String websiteUrl = body.get("websiteUrl") != null ? body.get("websiteUrl").toString() : null;
+        String commentBody = body.get("commentBody") != null ? body.get("commentBody").toString() : null;
         if (StringUtils.isEmpty(verifyCode)) {
             return ResultGenerator.genFailResult("验证码不能为空");
         }
@@ -224,11 +226,11 @@ public class BlogApiController {
      * 留言板 - 提交留言（需审核 + 敏感词自动过滤）
      */
     @PostMapping("/message")
-    public Result message(HttpServletRequest request,
-                          @RequestParam String nickname,
-                          @RequestParam String email,
-                          @RequestParam(required = false) String avatar,
-                          @RequestParam String messageBody) {
+    public Result message(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        String nickname = body.get("nickname") != null ? body.get("nickname").toString() : null;
+        String email = body.get("email") != null ? body.get("email").toString() : null;
+        String avatar = body.get("avatar") != null ? body.get("avatar").toString() : null;
+        String messageBody = body.get("messageBody") != null ? body.get("messageBody").toString() : null;
         if (StringUtils.isEmpty(nickname)) {
             return ResultGenerator.genFailResult("请输入昵称");
         }
