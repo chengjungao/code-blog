@@ -12,7 +12,7 @@
           #{{ tag }}
         </router-link>
       </div>
-      <div class="markdown-body" v-html="renderedContent"></div>
+      <div ref="contentRef" class="markdown-body" v-html="renderedContent"></div>
 
       <div class="copyright-notice">
         本站笔记除注明转载/出处外，皆为作者原创；转载时请保留来源说明。
@@ -82,21 +82,86 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchBlogDetail, fetchPageBySubUrl, submitComment as apiSubmitComment } from '../api/blog'
 import { setPageMeta, excerpt } from '../utils/seo'
 import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js/lib/core'
+import java from 'highlight.js/lib/languages/java'
+import python from 'highlight.js/lib/languages/python'
+import javascript from 'highlight.js/lib/languages/javascript'
+import typescript from 'highlight.js/lib/languages/typescript'
+import bash from 'highlight.js/lib/languages/bash'
+import sql from 'highlight.js/lib/languages/sql'
+import yaml from 'highlight.js/lib/languages/yaml'
+import json from 'highlight.js/lib/languages/json'
+import xml from 'highlight.js/lib/languages/xml'
+import markdown from 'highlight.js/lib/languages/markdown'
+import css from 'highlight.js/lib/languages/css'
+import scala from 'highlight.js/lib/languages/scala'
+import dockerfile from 'highlight.js/lib/languages/dockerfile'
+import properties from 'highlight.js/lib/languages/properties'
+import 'highlight.js/styles/github-dark.css'
+import mermaid from 'mermaid'
+
+// 按需注册常用语言，避免全量打包 190+ 语言导致体积膨胀
+hljs.registerLanguage('java', java)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('js', javascript)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('ts', typescript)
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('shell', bash)
+hljs.registerLanguage('sh', bash)
+hljs.registerLanguage('sql', sql)
+hljs.registerLanguage('yaml', yaml)
+hljs.registerLanguage('yml', yaml)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('html', xml)
+hljs.registerLanguage('markdown', markdown)
+hljs.registerLanguage('md', markdown)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('scala', scala)
+hljs.registerLanguage('dockerfile', dockerfile)
+hljs.registerLanguage('properties', properties)
+hljs.registerLanguage('ini', properties)
 
 const props = defineProps({ config: { type: Object, default: () => ({}) } })
 const route = useRoute()
 
-const md = new MarkdownIt({ html: true, linkify: true, breaks: true })
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  breaks: true,
+  highlight: function (str, lang) {
+    // mermaid 代码块保留 language-mermaid 类名，交给 renderMermaid 渲染成图表
+    if (lang === 'mermaid') {
+      return '<pre class="mermaid-pre"><code class="language-mermaid">' +
+        md.utils.escapeHtml(str) +
+        '</code></pre>'
+    }
+    // 有语言标识且 highlight.js 支持时，做语法高亮
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return '<pre class="hljs"><code>' +
+          hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+          '</code></pre>'
+      } catch (e) { /* 高亮失败则回退到转义纯文本 */ }
+    }
+    // 无语言或未知语言：转义 HTML 特殊字符，防止注释/标签被误解析
+    return '<pre class="hljs"><code>' + md.utils.escapeHtml(str) + '</code></pre>'
+  }
+})
+mermaid.initialize({ startOnLoad: false, theme: 'default' })
 const blog = ref(null)
 const comments = ref(null)
 const commentPage = ref(1)
 const captchaUrl = ref('')
 const submitting = ref(false)
+const contentRef = ref(null)
 
 const form = ref({
   commentator: '', email: '', websiteUrl: '', verifyCode: '', commentBody: ''
@@ -105,6 +170,32 @@ const form = ref({
 const renderedContent = computed(() => {
   if (!blog.value?.blogContent) return ''
   return md.render(blog.value.blogContent)
+})
+
+// 渲染 Mermaid 语法图（流程图/时序图等），将 language-mermaid 代码块替换为 SVG
+const renderMermaid = async () => {
+  await nextTick()
+  const el = contentRef.value
+  if (!el) return
+  const blocks = el.querySelectorAll('pre code.language-mermaid')
+  for (let i = 0; i < blocks.length; i++) {
+    const code = blocks[i].textContent || ''
+    const pre = blocks[i].parentElement
+    if (!pre || !code.trim()) continue
+    try {
+      const { svg } = await mermaid.render('mmd-' + Date.now() + '-' + i, code)
+      const wrapper = document.createElement('div')
+      wrapper.className = 'mermaid-wrapper'
+      wrapper.innerHTML = svg
+      pre.replaceWith(wrapper)
+    } catch (e) {
+      console.error('mermaid 渲染失败', e)
+    }
+  }
+}
+
+watch(renderedContent, () => {
+  renderMermaid()
 })
 
 const commentPages = computed(() => {

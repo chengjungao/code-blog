@@ -10,7 +10,6 @@ import com.site.blog.my.core.entity.BlogTag;
 import com.site.blog.my.core.entity.BlogTagRelation;
 import com.site.blog.my.core.service.BlogService;
 import com.site.blog.my.core.solr.BlogSolrServer;
-import com.site.blog.my.core.util.MarkDownUtil;
 import com.site.blog.my.core.util.PageQueryUtil;
 import com.site.blog.my.core.util.PageResult;
 import com.site.blog.my.core.util.PatternUtil;
@@ -341,7 +340,7 @@ public class BlogServiceImpl implements BlogService {
             blog.setBlogViews(blog.getBlogViews() + 1);
             BlogDetailVO blogDetailVO = new BlogDetailVO();
             BeanUtils.copyProperties(blog, blogDetailVO);
-            blogDetailVO.setBlogContent(MarkDownUtil.mdToHtml(blogDetailVO.getBlogContent()));
+            // 前端已用 markdown-it 渲染（含代码高亮/mermaid），后端直接返回原始 markdown，避免双重渲染
             BlogCategory blogCategory = categoryMapper.selectByPrimaryKey(blog.getBlogCategoryId());
             if (blogCategory == null) {
                 blogCategory = new BlogCategory();

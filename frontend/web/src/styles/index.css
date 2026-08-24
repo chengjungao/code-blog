@@ -295,6 +295,21 @@ textarea {
   font-weight: 800;
 }
 
+.markdown-body .mermaid-wrapper {
+  margin: 1.2em 0;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.markdown-body .mermaid-wrapper svg {
+  max-width: 100%;
+  height: auto;
+}
+
 .pagination {
   display: flex;
   justify-content: center;
