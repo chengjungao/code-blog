@@ -1,6 +1,8 @@
 package com.site.blog.my.core.controller.common;
 
 import com.alibaba.fastjson.JSONObject;
+import com.site.blog.my.core.service.ContentSecurityService;
+import com.site.blog.my.core.service.ContentSecurityService.SecurityCheckResult;
 import com.site.blog.my.core.service.HealthService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +21,9 @@ public class HealthAgentController {
     @Autowired
     private HealthService healthService;
 
+    @Autowired
+    private ContentSecurityService contentSecurityService;
+
     @Value("${token:}")
     private String authToken;
 
@@ -34,6 +39,15 @@ public class HealthAgentController {
         if (image.isEmpty()) {
             return ResponseEntity.badRequest().body(msg("error", "图片不能为空"));
         }
+        // 内容安全：图片违规拦截
+        try {
+            SecurityCheckResult imgCheck = contentSecurityService.checkImage(image.getBytes(), image.getContentType());
+            if (!imgCheck.isSafe()) {
+                return ResponseEntity.status(403).body(msg("error", "图片内容不合规，已被拦截：" + imgCheck.getDetail()));
+            }
+        } catch (java.io.IOException e) {
+            return ResponseEntity.status(500).body(msg("error", "图片读取失败，请重试"));
+        }
         String result = healthService.analyzeIngredientsOcr(image);
         return ResponseEntity.ok(msg("result", result));
     }
@@ -48,6 +62,11 @@ public class HealthAgentController {
         String content = request.get("content");
         if (content == null || content.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(msg("error", "内容不能为空"));
+        }
+        // 内容安全：文本违规拦截
+        SecurityCheckResult textCheck = contentSecurityService.checkText(content);
+        if (!textCheck.isSafe()) {
+            return ResponseEntity.status(403).body(msg("error", "内容不合规，已被拦截：" + textCheck.getDetail()));
         }
         String result = healthService.analyzeIngredientsV3(content.trim());
         return ResponseEntity.ok(msg("result", JSONObject.parseObject(result)));
@@ -65,6 +84,11 @@ public class HealthAgentController {
         String name = request.get("name");
         if (name == null || name.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(msg("error", "请输入配料名称"));
+        }
+        // 内容安全：文本违规拦截
+        SecurityCheckResult nameCheck = contentSecurityService.checkText(name);
+        if (!nameCheck.isSafe()) {
+            return ResponseEntity.status(403).body(msg("error", "内容不合规，已被拦截：" + nameCheck.getDetail()));
         }
         String result = healthService.lookupIngredient(name.trim());
         return ResponseEntity.ok(msg("result", JSONObject.parseObject(result)));
