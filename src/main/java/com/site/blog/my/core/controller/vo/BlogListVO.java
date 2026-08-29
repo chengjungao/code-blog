@@ -17,8 +17,6 @@ public class BlogListVO implements Serializable {
 
     private Integer blogCategoryId;
 
-    private String blogCategoryIcon;
-
     private String blogCategoryName;
 
     @JsonFormat(pattern = "yyyy-MM-dd", timezone = "GMT+8")
@@ -70,14 +68,6 @@ public class BlogListVO implements Serializable {
 
     public void setBlogCategoryName(String blogCategoryName) {
         this.blogCategoryName = blogCategoryName;
-    }
-
-    public String getBlogCategoryIcon() {
-        return blogCategoryIcon;
-    }
-
-    public void setBlogCategoryIcon(String blogCategoryIcon) {
-        this.blogCategoryIcon = blogCategoryIcon;
     }
 
     public Date getCreateTime() {

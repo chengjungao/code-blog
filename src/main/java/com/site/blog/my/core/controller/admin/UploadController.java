@@ -39,12 +39,12 @@ public class UploadController {
         StringBuilder tempName = new StringBuilder();
         tempName.append(sdf.format(new Date())).append(r.nextInt(100)).append(suffixName);
         String newFileName = tempName.toString();
-        File fileDirectory = new File(fileAttament);
-        //创建文件
-        File destFile = new File(fileAttament + newFileName);
+        File fileDirectory = new File(fileAttament).getAbsoluteFile();
+        //创建文件（使用绝对路径，避免 transferTo 相对路径解析到 Tomcat 临时目录）
+        File destFile = new File(fileAttament + newFileName).getAbsoluteFile();
         try {
             if (!fileDirectory.exists()) {
-                if (!fileDirectory.mkdir()) {
+                if (!fileDirectory.mkdirs()) {
                     throw new IOException("文件夹创建失败,路径为：" + fileDirectory);
                 }
             }

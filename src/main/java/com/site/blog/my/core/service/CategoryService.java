@@ -22,12 +22,11 @@ public interface CategoryService {
      * 添加分类数据
      *
      * @param categoryName
-     * @param categoryIcon
      * @return
      */
-    Boolean saveCategory(String categoryName,String categoryIcon);
+    Boolean saveCategory(String categoryName);
 
-    Boolean updateCategory(Integer categoryId, String categoryName, String categoryIcon);
+    Boolean updateCategory(Integer categoryId, String categoryName);
 
     Boolean deleteBatch(Integer[] ids);
 

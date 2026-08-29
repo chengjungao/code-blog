@@ -12,8 +12,6 @@ public class BlogDetailVO {
 
     private Integer commentCount;
 
-    private String blogCategoryIcon;
-
     private String blogCategoryName;
 
     private String blogCoverImage;
@@ -50,14 +48,6 @@ public class BlogDetailVO {
 
     public void setBlogCategoryId(Integer blogCategoryId) {
         this.blogCategoryId = blogCategoryId;
-    }
-
-    public String getBlogCategoryIcon() {
-        return blogCategoryIcon;
-    }
-
-    public void setBlogCategoryIcon(String blogCategoryIcon) {
-        this.blogCategoryIcon = blogCategoryIcon;
     }
 
     public String getBlogCategoryName() {

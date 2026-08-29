@@ -13,16 +13,6 @@
         <el-table-column prop="categoryId" label="ID" width="80" />
         <el-table-column prop="categoryName" label="分类名称" />
         <el-table-column prop="categoryRank" label="排序" width="100" />
-        <el-table-column label="图标" width="80">
-          <template #default="{ row }">
-            <el-image
-              v-if="row.categoryIcon"
-              :src="row.categoryIcon"
-              style="width: 36px; height: 36px; border-radius: 4px;"
-              fit="cover"
-            />
-          </template>
-        </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="170" />
         <el-table-column label="操作" width="160">
           <template #default="{ row }">
@@ -41,21 +31,6 @@
         <el-form-item label="排序值">
           <el-input-number v-model="form.categoryRank" :min="0" />
         </el-form-item>
-        <el-form-item label="分类图标">
-          <el-upload
-            :show-file-list="false"
-            :before-upload="handleUpload"
-            accept="image/*"
-          >
-            <el-image
-              v-if="form.categoryIcon"
-              :src="form.categoryIcon"
-              style="width: 60px; height: 60px; border-radius: 6px;"
-              fit="cover"
-            />
-            <el-button v-else size="small">上传图标</el-button>
-          </el-upload>
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -68,7 +43,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getCategoryList, saveCategory, updateCategory, deleteCategory, uploadFile } from '../api/admin'
+import { getCategoryList, saveCategory, updateCategory, deleteCategory } from '../api/admin'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -79,8 +54,7 @@ const isEdit = ref(false)
 const form = ref({
   categoryId: null,
   categoryName: '',
-  categoryRank: 0,
-  categoryIcon: ''
+  categoryRank: 0
 })
 
 const fetchData = async () => {
@@ -102,19 +76,9 @@ const openDialog = (row) => {
     form.value = { ...row }
   } else {
     isEdit.value = false
-    form.value = { categoryId: null, categoryName: '', categoryRank: 0, categoryIcon: '' }
+    form.value = { categoryId: null, categoryName: '', categoryRank: 0 }
   }
   dialogVisible.value = true
-}
-
-const handleUpload = async (file) => {
-  try {
-    const res = await uploadFile(file)
-    form.value.categoryIcon = res.data || res
-  } catch (e) {
-    ElMessage.error('上传失败')
-  }
-  return false
 }
 
 const handleSave = async () => {

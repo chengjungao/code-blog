@@ -43,15 +43,11 @@ public class CategoryController {
      */
     @RequestMapping(value = "/categories/save", method = RequestMethod.POST)
     @ResponseBody
-    public Result save(@RequestParam("categoryName") String categoryName,
-                       @RequestParam("categoryIcon") String categoryIcon) {
+    public Result save(@RequestParam("categoryName") String categoryName) {
         if (StringUtils.isEmpty(categoryName)) {
             return ResultGenerator.genFailResult("请输入分类名称！");
         }
-        if (StringUtils.isEmpty(categoryIcon)) {
-            return ResultGenerator.genFailResult("请选择分类图标！");
-        }
-        if (categoryService.saveCategory(categoryName, categoryIcon)) {
+        if (categoryService.saveCategory(categoryName)) {
             return ResultGenerator.genSuccessResult();
         } else {
             return ResultGenerator.genFailResult("分类名称重复");
@@ -65,15 +61,11 @@ public class CategoryController {
     @RequestMapping(value = "/categories/update", method = RequestMethod.POST)
     @ResponseBody
     public Result update(@RequestParam("categoryId") Integer categoryId,
-                         @RequestParam("categoryName") String categoryName,
-                         @RequestParam("categoryIcon") String categoryIcon) {
+                         @RequestParam("categoryName") String categoryName) {
         if (StringUtils.isEmpty(categoryName)) {
             return ResultGenerator.genFailResult("请输入分类名称！");
         }
-        if (StringUtils.isEmpty(categoryIcon)) {
-            return ResultGenerator.genFailResult("请选择分类图标！");
-        }
-        if (categoryService.updateCategory(categoryId, categoryName, categoryIcon)) {
+        if (categoryService.updateCategory(categoryId, categoryName)) {
             return ResultGenerator.genSuccessResult();
         } else {
             return ResultGenerator.genFailResult("分类名称重复");

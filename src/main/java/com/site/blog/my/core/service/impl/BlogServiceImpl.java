@@ -21,7 +21,6 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class BlogServiceImpl implements BlogService {
@@ -346,10 +345,7 @@ public class BlogServiceImpl implements BlogService {
                 blogCategory = new BlogCategory();
                 blogCategory.setCategoryId(0);
                 blogCategory.setCategoryName("默认分类");
-                blogCategory.setCategoryIcon("");
             }
-            //分类信息
-            blogDetailVO.setBlogCategoryIcon(blogCategory.getCategoryIcon());
             if (!StringUtils.isEmpty(blog.getBlogTags())) {
                 //标签设置
                 List<String> tags = Arrays.asList(blog.getBlogTags().split(","));
@@ -366,24 +362,9 @@ public class BlogServiceImpl implements BlogService {
     private List<BlogListVO> getBlogListVOsByBlogs(List<Blog> blogList) {
         List<BlogListVO> blogListVOS = new ArrayList<>();
         if (!CollectionUtils.isEmpty(blogList)) {
-            List<Integer> categoryIds = blogList.stream().map(Blog::getBlogCategoryId).collect(Collectors.toList());
-            Map<Integer, String> blogCategoryMap = new HashMap<>();
-            if (!CollectionUtils.isEmpty(categoryIds)) {
-                List<BlogCategory> blogCategories = categoryMapper.selectByCategoryIds(categoryIds);
-                if (!CollectionUtils.isEmpty(blogCategories)) {
-                    blogCategoryMap = blogCategories.stream().collect(Collectors.toMap(BlogCategory::getCategoryId, BlogCategory::getCategoryIcon, (key1, key2) -> key2));
-                }
-            }
             for (Blog blog : blogList) {
                 BlogListVO blogListVO = new BlogListVO();
                 BeanUtils.copyProperties(blog, blogListVO);
-                if (blogCategoryMap.containsKey(blog.getBlogCategoryId())) {
-                    blogListVO.setBlogCategoryIcon(blogCategoryMap.get(blog.getBlogCategoryId()));
-                } else {
-                    blogListVO.setBlogCategoryId(0);
-                    blogListVO.setBlogCategoryName("默认分类");
-                    blogListVO.setBlogCategoryIcon("/admin/dist/img/category/00.png");
-                }
                 blogListVOS.add(blogListVO);
             }
         }

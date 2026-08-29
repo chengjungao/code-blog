@@ -9,8 +9,6 @@ public class BlogCategory {
 
     private String categoryName;
 
-    private String categoryIcon;
-
     private Integer categoryRank;
 
     private Byte isDeleted;
@@ -32,14 +30,6 @@ public class BlogCategory {
 
     public void setCategoryName(String categoryName) {
         this.categoryName = categoryName == null ? null : categoryName.trim();
-    }
-
-    public String getCategoryIcon() {
-        return categoryIcon;
-    }
-
-    public void setCategoryIcon(String categoryIcon) {
-        this.categoryIcon = categoryIcon == null ? null : categoryIcon.trim();
     }
 
     public Integer getCategoryRank() {
@@ -74,7 +64,6 @@ public class BlogCategory {
         sb.append("Hash = ").append(hashCode());
         sb.append(", categoryId=").append(categoryId);
         sb.append(", categoryName=").append(categoryName);
-        sb.append(", categoryIcon=").append(categoryIcon);
         sb.append(", categoryRank=").append(categoryRank);
         sb.append(", isDeleted=").append(isDeleted);
         sb.append(", createTime=").append(createTime);

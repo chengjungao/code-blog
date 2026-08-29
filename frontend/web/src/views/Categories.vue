@@ -9,8 +9,7 @@
     <div class="categories-grid" v-if="categories?.length">
       <router-link v-for="cat in categories" :key="cat.categoryId" :to="'/category/' + cat.categoryName + '/1'" class="cat-card">
         <div class="cat-icon-wrap">
-          <img v-if="cat.categoryIcon" :src="cat.categoryIcon" class="cat-icon" />
-          <span v-else class="cat-icon-placeholder">{{ cat.categoryName.slice(0, 1) }}</span>
+          <span class="cat-icon-placeholder">{{ cat.categoryName.slice(0, 1) }}</span>
         </div>
         <h3>{{ cat.categoryName }}</h3>
       </router-link>
@@ -72,7 +71,6 @@ onMounted(async () => {
   color: var(--color-text);
 }
 .cat-icon-wrap { margin-bottom: 12px; }
-.cat-icon { width: 40px; height: 40px; border-radius: 8px; }
 .cat-icon-placeholder {
   width: 42px;
   height: 42px;

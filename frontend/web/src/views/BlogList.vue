@@ -13,7 +13,6 @@
         <div class="card-body">
           <div class="card-category">
             <router-link :to="'/category/' + blog.blogCategoryName + '/1'" class="category-link">
-              <img v-if="blog.blogCategoryIcon" :src="blog.blogCategoryIcon" class="category-icon" />
               <span>{{ blog.blogCategoryName }}</span>
             </router-link>
           </div>
@@ -205,7 +204,6 @@ onMounted(() => loadData())
   padding: 2px 8px;
   border-radius: 20px;
 }
-.category-icon { height: 12px; width: 12px; }
 .card-title { font-size: 14px; font-weight: 600; margin: 0; line-height: 1.4; }
 .card-title a { color: var(--color-text); }
 .card-title a:hover { color: var(--color-primary); }

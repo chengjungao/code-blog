@@ -34,12 +34,11 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public Boolean saveCategory(String categoryName, String categoryIcon) {
+    public Boolean saveCategory(String categoryName) {
         BlogCategory temp = blogCategoryMapper.selectByCategoryName(categoryName);
         if (temp == null) {
             BlogCategory blogCategory = new BlogCategory();
             blogCategory.setCategoryName(categoryName);
-            blogCategory.setCategoryIcon(categoryIcon);
             return blogCategoryMapper.insertSelective(blogCategory) > 0;
         }
         return false;
@@ -47,10 +46,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public Boolean updateCategory(Integer categoryId, String categoryName, String categoryIcon) {
+    public Boolean updateCategory(Integer categoryId, String categoryName) {
         BlogCategory blogCategory = blogCategoryMapper.selectByPrimaryKey(categoryId);
         if (blogCategory != null) {
-            blogCategory.setCategoryIcon(categoryIcon);
             blogCategory.setCategoryName(categoryName);
             //修改分类实体
             blogMapper.updateBlogCategorys(categoryName, blogCategory.getCategoryId(), new Integer[]{categoryId});
