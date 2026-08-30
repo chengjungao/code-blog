@@ -1,0 +1,16 @@
+{
+  "name": "blog-renderer",
+  "version": "1.0.0",
+  "description": "Puppeteer-based static page renderer for Code-Blog",
+  "main": "render.js",
+  "scripts": {
+    "render": "node render.js",
+    "render-all": "curl -s http://localhost:28083/admin/render/urls | node render.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^21.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

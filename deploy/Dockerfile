@@ -44,7 +44,7 @@ RUN mvn package -DskipTests -B
 FROM node:20-alpine AS build-renderer
 WORKDIR /app
 COPY deploy/renderer/package.json ./
-RUN npm ci --registry=https://registry.npmmirror.com
+RUN npm install --registry=https://registry.npmmirror.com
 
 # ---------- Stage 4: Final Image ----------
 FROM eclipse-temurin:8-jre-alpine
@@ -53,10 +53,10 @@ LABEL org.opencontainers.image.authors="chengjungao"
 LABEL org.opencontainers.image.description="Code-Blog: Nginx + Spring Boot single image"
 
 # Alpine Aliyun mirror + install packages (including Node.js + Chromium for Puppeteer)
+# chromium 包会自动拉入 gtk+3.0、pango 等 GUI 依赖
 RUN sed -i 's|https://dl-cdn.alpinelinux.org|https://mirrors.aliyun.com|g' /etc/apk/repositories \
  && apk add --no-cache nginx supervisor curl nodejs npm \
     chromium nss freetype harfbuzz ca-certificates ttf-freefont \
-    # Puppeteer/Chromium runtime dependencies
     dbus glib fontconfig
 
 # Create directories
@@ -64,7 +64,7 @@ RUN mkdir -p /opt/app/blog \
     /opt/app/renderer \
     /var/log/supervisor \
     /var/blog/data \
-    /var/blog/static-pages
+    /usr/share/nginx/html/blog/pages
 
 # Copy Spring Boot JAR
 COPY --from=build-backend /app/target/my-blog-4.0.0-SNAPSHOT.jar /opt/app/blog/app.jar
@@ -89,7 +89,7 @@ RUN sed -i '1s/^\xEF\xBB\xBF//' /etc/nginx/http.d/default.conf /etc/supervisor/c
  && sed -i 's/\r$//' /etc/nginx/http.d/default.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Write entrypoint.sh directly inside container (avoids BOM/CRLF from Windows COPY)
-RUN printf '#!/bin/sh\nset -e\necho "========================================="\necho "  Code-Blog Starting..."\necho "========================================="\nmkdir -p /var/blog/data /var/blog/solr /var/blog/static-pages\n# Initialize Solr config on first start (volume is empty)\nif [ ! -f /var/blog/solr/solr.xml ]; then\n  echo "Initializing Solr config from template..."\n  cp -r /opt/app/solr-template/* /var/blog/solr/\nfi\n# Set Puppeteer environment variables\nexport PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true\nexport PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser\nexec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf\n' > /opt/entrypoint.sh \
+RUN printf '#!/bin/sh\nset -e\necho "========================================="\necho "  Code-Blog Starting..."\necho "========================================="\nmkdir -p /var/blog/data /var/blog/solr /usr/share/nginx/html/blog/pages\n# Initialize Solr config on first start (volume is empty)\nif [ ! -f /var/blog/solr/solr.xml ]; then\n  echo "Initializing Solr config from template..."\n  cp -r /opt/app/solr-template/* /var/blog/solr/\nfi\n# Set Puppeteer environment variables\nexport PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true\nexport PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser\nexec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf\n' > /opt/entrypoint.sh \
  && chmod +x /opt/entrypoint.sh
 
 # Puppeteer environment variables

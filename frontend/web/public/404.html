@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 - 页面不存在 | 程军高的技术博客</title>
+    <meta name="description" content="您访问的页面不存在或已被移除。">
+    <meta name="robots" content="noindex, nofollow">
+    <style>
+        :root {
+            --color-primary: #0f766e;
+            --color-accent: #14b8a6;
+            --color-text: #1b2e1b;
+            --color-text-secondary: #5a6b5a;
+            --color-surface: #f8faf8;
+            --color-surface-strong: #e8f5e9;
+            --color-border: #d4e4d4;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--color-surface);
+            color: var(--color-text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+        }
+        
+        .not-found-container {
+            text-align: center;
+            max-width: 500px;
+        }
+        
+        .error-code {
+            font-size: 140px;
+            font-weight: 800;
+            color: var(--color-primary);
+            line-height: 1;
+            letter-spacing: -6px;
+            margin-bottom: 16px;
+            text-shadow: 2px 2px 0 rgba(15, 118, 110, 0.1);
+        }
+        
+        .error-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 12px;
+        }
+        
+        .error-message {
+            font-size: 16px;
+            color: var(--color-text-secondary);
+            line-height: 1.6;
+            margin-bottom: 36px;
+        }
+        
+        .error-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 14px 32px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background: var(--color-primary);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
+        }
+        
+        .btn-primary:hover {
+            background: var(--color-accent);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(15, 118, 110, 0.3);
+        }
+        
+        .btn-secondary {
+            background: var(--color-surface-strong);
+            color: var(--color-text);
+            border: 1px solid var(--color-border);
+        }
+        
+        .btn-secondary:hover {
+            background: #c8e6c9;
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+            transform: translateY(-2px);
+        }
+        
+        .home-link {
+            margin-top: 48px;
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+        
+        .home-link a {
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+        
+        .home-link a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 640px) {
+            .error-code {
+                font-size: 100px;
+                letter-spacing: -4px;
+            }
+            .error-title {
+                font-size: 22px;
+            }
+            .error-message {
+                font-size: 14px;
+            }
+            .btn {
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="not-found-container">
+        <div class="error-code">404</div>
+        <h1 class="error-title">页面不存在</h1>
+        <p class="error-message">
+            抱歉，您访问的页面不存在或已被移除。<br>
+            请检查网址是否正确，或返回首页浏览。
+        </p>
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary">返回首页</a>
+            <a href="/notes" class="btn btn-secondary">浏览笔记</a>
+        </div>
+        <p class="home-link">
+            <a href="/">← 回到 程军高的技术博客</a>
+        </p>
+    </div>
+</body>
+</html>
