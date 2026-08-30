@@ -33,85 +33,90 @@ public class SeoController {
 
     /**
      * 生成 sitemap.xml
+     * 只收录有实质内容的页面，不包含分类/标签等薄内容页
      */
     @GetMapping(value = "/sitemap.xml", produces = "application/xml;charset=UTF-8")
     public String sitemap(HttpServletRequest request) {
         String baseUrl = getBaseUrl(request);
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         
+        // 获取所有已发布博客，计算最新更新时间作为栏目页的 lastmod
+        List<Blog> allBlogs = getAllPublishedBlogs();
+        String latestUpdate = getLatestUpdateDate(allBlogs, dateFormat);
+        
         StringBuilder xml = new StringBuilder();
         xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
         xml.append("<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n");
         
-        // 首页
-        xml.append("  <url>\n");
-        xml.append("    <loc>").append(baseUrl).append("/</loc>\n");
-        xml.append("    <changefreq>daily</changefreq>\n");
-        xml.append("    <priority>1.0</priority>\n");
-        xml.append("  </url>\n");
+        // 首页（有内容，带 lastmod）
+        appendUrl(xml, baseUrl + "/", latestUpdate, "1.0");
         
         // 笔记列表页
-        xml.append("  <url>\n");
-        xml.append("    <loc>").append(baseUrl).append("/notes</loc>\n");
-        xml.append("    <changefreq>daily</changefreq>\n");
-        xml.append("    <priority>0.9</priority>\n");
-        xml.append("  </url>\n");
+        appendUrl(xml, baseUrl + "/notes", latestUpdate, "0.9");
         
-        // 生活杂记页
-        xml.append("  <url>\n");
-        xml.append("    <loc>").append(baseUrl).append("/life</loc>\n");
-        xml.append("    <changefreq>weekly</changefreq>\n");
-        xml.append("    <priority>0.8</priority>\n");
-        xml.append("  </url>\n");
+        // 生活杂记页（取生活分类下最新文章时间）
+        String lifeUpdate = getLatestDateByCategory(allBlogs, "生活", dateFormat);
+        appendUrl(xml, baseUrl + "/life", lifeUpdate != null ? lifeUpdate : latestUpdate, "0.8");
         
-        // 分类页
-        xml.append("  <url>\n");
-        xml.append("    <loc>").append(baseUrl).append("/categories</loc>\n");
-        xml.append("    <changefreq>weekly</changefreq>\n");
-        xml.append("    <priority>0.7</priority>\n");
-        xml.append("  </url>\n");
+        // 分类列表页（实际有内容的聚合页）
+        appendUrl(xml, baseUrl + "/categories", latestUpdate, "0.7");
         
-        // 所有已发布博客
-        List<Blog> allBlogs = getAllPublishedBlogs();
+        // 作品集（高价值转化页）
+        appendUrl(xml, baseUrl + "/portfolio", null, "0.8");
+        
+        // 所有已发布博客（优先使用自定义路径，带 lastmod）
         for (Blog blog : allBlogs) {
             String blogUrl = getBlogUrl(baseUrl, blog);
-            String lastMod = blog.getUpdateTime() != null ? dateFormat.format(blog.getUpdateTime()) 
-                                : (blog.getCreateTime() != null ? dateFormat.format(blog.getCreateTime()) : "");
-            
-            xml.append("  <url>\n");
-            xml.append("    <loc>").append(blogUrl).append("</loc>\n");
-            if (!lastMod.isEmpty()) {
-                xml.append("    <lastmod>").append(lastMod).append("</lastmod>\n");
-            }
-            xml.append("    <changefreq>monthly</changefreq>\n");
-            xml.append("    <priority>0.8</priority>\n");
-            xml.append("  </url>\n");
-        }
-        
-        // 所有分类
-        List<BlogCategory> categories = categoryService.getAllCategories();
-        for (BlogCategory category : categories) {
-            xml.append("  <url>\n");
-            xml.append("    <loc>").append(baseUrl).append("/category/")
-               .append(encodeUrl(category.getCategoryName())).append("/1</loc>\n");
-            xml.append("    <changefreq>weekly</changefreq>\n");
-            xml.append("    <priority>0.6</priority>\n");
-            xml.append("  </url>\n");
-        }
-        
-        // 所有标签
-        List<BlogTagCount> tags = tagService.getBlogTagCountForIndex();
-        for (BlogTagCount tag : tags) {
-            xml.append("  <url>\n");
-            xml.append("    <loc>").append(baseUrl).append("/tag/")
-               .append(encodeUrl(tag.getTagName())).append("/1</loc>\n");
-            xml.append("    <changefreq>weekly</changefreq>\n");
-            xml.append("    <priority>0.5</priority>\n");
-            xml.append("  </url>\n");
+            String lastMod = blog.getUpdateTime() != null ? dateFormat.format(blog.getUpdateTime())
+                                : (blog.getCreateTime() != null ? dateFormat.format(blog.getCreateTime()) : null);
+            appendUrl(xml, blogUrl, lastMod, "0.8");
         }
         
         xml.append("</urlset>");
         return xml.toString();
+    }
+
+    /**
+     * 添加一个 sitemap URL 条目
+     */
+    private void appendUrl(StringBuilder xml, String loc, String lastmod, String priority) {
+        xml.append("  <url>\n");
+        xml.append("    <loc>").append(loc).append("</loc>\n");
+        if (lastmod != null && !lastmod.isEmpty()) {
+            xml.append("    <lastmod>").append(lastmod).append("</lastmod>\n");
+        }
+        xml.append("    <priority>").append(priority).append("</priority>\n");
+        xml.append("  </url>\n");
+    }
+
+    /**
+     * 获取所有博客中最新的更新日期（作为栏目页的 lastmod）
+     */
+    private String getLatestUpdateDate(List<Blog> blogs, SimpleDateFormat dateFormat) {
+        Date latest = null;
+        for (Blog blog : blogs) {
+            Date d = blog.getUpdateTime() != null ? blog.getUpdateTime() : blog.getCreateTime();
+            if (d != null && (latest == null || d.after(latest))) {
+                latest = d;
+            }
+        }
+        return latest != null ? dateFormat.format(latest) : null;
+    }
+
+    /**
+     * 获取指定分类下最新的更新日期（用于 /life 页面的 lastmod）
+     */
+    private String getLatestDateByCategory(List<Blog> blogs, String categoryName, SimpleDateFormat dateFormat) {
+        Date latest = null;
+        for (Blog blog : blogs) {
+            if (categoryName.equals(blog.getBlogCategoryName())) {
+                Date d = blog.getUpdateTime() != null ? blog.getUpdateTime() : blog.getCreateTime();
+                if (d != null && (latest == null || d.after(latest))) {
+                    latest = d;
+                }
+            }
+        }
+        return latest != null ? dateFormat.format(latest) : null;
     }
 
     /**
@@ -132,18 +137,16 @@ public class SeoController {
         txt.append("## 主要栏目\n\n");
         txt.append("- [技术笔记](").append(baseUrl).append("/notes) - 技术文章和教程\n");
         txt.append("- [生活杂记](").append(baseUrl).append("/life) - 读书心得、做菜笔记\n");
-        txt.append("- [分类列表](").append(baseUrl).append("/categories) - 按分类浏览\n\n");
+        txt.append("- [分类列表](").append(baseUrl).append("/categories) - 按分类浏览\n");
+        txt.append("- [作品集](").append(baseUrl).append("/portfolio) - 项目与作品\n\n");
         
         txt.append("## 最新文章\n\n");
         List<Blog> allBlogs = getAllPublishedBlogs();
         int count = 0;
         for (Blog blog : allBlogs) {
-            if (count >= 20) break; // 只列出最新 20 篇
+            if (count >= 20) break;
             String blogUrl = getBlogUrl(baseUrl, blog);
             txt.append("- [").append(blog.getBlogTitle()).append("](").append(blogUrl).append(")\n");
-            if (blog.getBlogSubUrl() != null && !blog.getBlogSubUrl().isEmpty()) {
-                txt.append("  - 自定义路径: /").append(blog.getBlogSubUrl()).append("\n");
-            }
             if (blog.getBlogCategoryName() != null) {
                 txt.append("  - 分类: ").append(blog.getBlogCategoryName()).append("\n");
             }
@@ -159,7 +162,7 @@ public class SeoController {
         for (BlogCategory category : categories) {
             txt.append("- [").append(category.getCategoryName()).append("](")
                .append(baseUrl).append("/category/")
-               .append(encodeUrl(category.getCategoryName())).append("/1)\n");
+               .append(encodeUrl(category.getCategoryName())).append(")\n");
         }
         
         txt.append("\n## 标签\n\n");
@@ -167,38 +170,42 @@ public class SeoController {
         for (BlogTagCount tag : tags) {
             txt.append("- [").append(tag.getTagName()).append("](")
                .append(baseUrl).append("/tag/")
-               .append(encodeUrl(tag.getTagName())).append("/1)\n");
+               .append(encodeUrl(tag.getTagName())).append(")\n");
         }
         
         return txt.toString();
     }
 
     /**
-     * 获取基础 URL
+     * 获取基础 URL（支持反向代理）
      */
     private String getBaseUrl(HttpServletRequest request) {
         String scheme = request.getScheme();
         String serverName = request.getServerName();
-        int serverPort = request.getServerPort();
         
-        // 优先使用请求头中的信息（支持反向代理）
+        // 优先使用反向代理头（Nginx 会设置 X-Forwarded-Proto）
         String forwardedProto = request.getHeader("X-Forwarded-Proto");
         String forwardedHost = request.getHeader("X-Forwarded-Host");
         
+        boolean behindProxy = false;
         if (forwardedProto != null) {
             scheme = forwardedProto;
+            behindProxy = true;
         }
         if (forwardedHost != null) {
             serverName = forwardedHost.split(":")[0];
-            serverPort = forwardedHost.contains(":") ? Integer.parseInt(forwardedHost.split(":")[1]) : 443;
         }
         
         StringBuilder baseUrl = new StringBuilder();
         baseUrl.append(scheme).append("://").append(serverName);
         
-        if ((scheme.equals("http") && serverPort != 80) || 
-            (scheme.equals("https") && serverPort != 443)) {
-            baseUrl.append(":").append(serverPort);
+        // 反向代理模式下不附加端口（代理已处理端口转发）
+        if (!behindProxy) {
+            int serverPort = request.getServerPort();
+            if ((scheme.equals("http") && serverPort != 80) || 
+                (scheme.equals("https") && serverPort != 443)) {
+                baseUrl.append(":").append(serverPort);
+            }
         }
         
         return baseUrl.toString();

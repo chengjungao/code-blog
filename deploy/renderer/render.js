@@ -101,6 +101,21 @@ async function renderUrl(browser, url) {
         // 获取渲染后的 HTML
         const html = await page.content();
         
+        // 提取 Vue 存储的博客数据，注入到 HTML 中供客户端水合使用（消除闪烁）
+        const preloadedData = await page.evaluate(() => window.__PRELOADED_DATA__ || null);
+        let finalHtml = html;
+        // 仅在数据有效时注入（防止空对象污染预渲染文件，导致客户端白屏）
+        if (preloadedData && preloadedData.blog && preloadedData.blog.blogId) {
+            // 转义 < 防止 </script> 破坏 HTML 结构
+            const jsonStr = JSON.stringify(preloadedData).replace(/</g, '\\u003c');
+            const dataScript = `<script id="__PRELOADED_DATA__" type="application/json">${jsonStr}</script>`;
+            // 用 indexOf 定位拼接，避免 String.replace 对替换串中 $ 符号的特殊解释（博客内容可能含 $）
+            const bodyCloseIdx = finalHtml.lastIndexOf('</body>');
+            if (bodyCloseIdx !== -1) {
+                finalHtml = finalHtml.slice(0, bodyCloseIdx) + dataScript + '\n' + finalHtml.slice(bodyCloseIdx);
+            }
+        }
+        
         // 提取 <head> 中的 meta 标签（用于 SEO）
         const metaInfo = await page.evaluate(() => {
             const title = document.title;
@@ -122,8 +137,8 @@ async function renderUrl(browser, url) {
             fs.mkdirSync(outputDir, { recursive: true });
         }
         
-        // 写入文件
-        fs.writeFileSync(outputPath, html, 'utf-8');
+        // 写入文件（使用注入了数据的 HTML）
+        fs.writeFileSync(outputPath, finalHtml, 'utf-8');
         
         console.log(`[完成] ${url} -> ${filePath}`);
         console.log(`       标题: ${metaInfo.title}`);

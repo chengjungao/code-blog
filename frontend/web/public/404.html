@@ -1,158 +1,149 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 - 页面不存在 | 程军高的技术博客</title>
-    <meta name="description" content="您访问的页面不存在或已被移除。">
-    <meta name="robots" content="noindex, nofollow">
-    <style>
-        :root {
-            --color-primary: #0f766e;
-            --color-accent: #14b8a6;
-            --color-text: #1b2e1b;
-            --color-text-secondary: #5a6b5a;
-            --color-surface: #f8faf8;
-            --color-surface-strong: #e8f5e9;
-            --color-border: #d4e4d4;
-        }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: var(--color-surface);
-            color: var(--color-text);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 20px;
-        }
-        
-        .not-found-container {
-            text-align: center;
-            max-width: 500px;
-        }
-        
-        .error-code {
-            font-size: 140px;
-            font-weight: 800;
-            color: var(--color-primary);
-            line-height: 1;
-            letter-spacing: -6px;
-            margin-bottom: 16px;
-            text-shadow: 2px 2px 0 rgba(15, 118, 110, 0.1);
-        }
-        
-        .error-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--color-text);
-            margin-bottom: 12px;
-        }
-        
-        .error-message {
-            font-size: 16px;
-            color: var(--color-text-secondary);
-            line-height: 1.6;
-            margin-bottom: 36px;
-        }
-        
-        .error-actions {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .btn {
-            padding: 14px 32px;
-            border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.25s ease;
-            display: inline-block;
-        }
-        
-        .btn-primary {
-            background: var(--color-primary);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
-        }
-        
-        .btn-primary:hover {
-            background: var(--color-accent);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(15, 118, 110, 0.3);
-        }
-        
-        .btn-secondary {
-            background: var(--color-surface-strong);
-            color: var(--color-text);
-            border: 1px solid var(--color-border);
-        }
-        
-        .btn-secondary:hover {
-            background: #c8e6c9;
-            border-color: var(--color-primary);
-            color: var(--color-primary);
-            transform: translateY(-2px);
-        }
-        
-        .home-link {
-            margin-top: 48px;
-            font-size: 14px;
-            color: var(--color-text-secondary);
-        }
-        
-        .home-link a {
-            color: var(--color-primary);
-            text-decoration: none;
-        }
-        
-        .home-link a:hover {
-            text-decoration: underline;
-        }
-        
-        @media (max-width: 640px) {
-            .error-code {
-                font-size: 100px;
-                letter-spacing: -4px;
-            }
-            .error-title {
-                font-size: 22px;
-            }
-            .error-message {
-                font-size: 14px;
-            }
-            .btn {
-                padding: 12px 24px;
-                font-size: 14px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 - 页面不存在 | 程军高的博客</title>
+  <meta name="robots" content="noindex">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: #fcfdfa;
+      color: #16231f;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 520px;
+    }
+
+    .error-code {
+      font-size: 140px;
+      font-weight: 800;
+      color: #0f766e;
+      line-height: 1;
+      letter-spacing: -6px;
+      position: relative;
+      display: inline-block;
+    }
+
+    .error-code::after {
+      content: '';
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      height: 12px;
+      background: #d8efeb;
+      border-radius: 6px;
+      z-index: -1;
+    }
+
+    .error-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #16231f;
+      margin: 20px 0 12px;
+    }
+
+    .error-message {
+      font-size: 16px;
+      color: #5d6d68;
+      line-height: 1.7;
+      margin-bottom: 36px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: #0f766e;
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: #0d6560;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(15, 118, 110, 0.25);
+    }
+
+    .btn-secondary {
+      background: #eef4f1;
+      color: #16231f;
+      border: 1px solid #dde5df;
+    }
+
+    .btn-secondary:hover {
+      background: #d8efeb;
+      border-color: #0f766e;
+      color: #0f766e;
+      transform: translateY(-2px);
+    }
+
+    .back-hint {
+      margin-top: 48px;
+      font-size: 13px;
+      color: #81908b;
+    }
+
+    .back-hint a {
+      color: #0f766e;
+      text-decoration: none;
+    }
+
+    .back-hint a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 640px) {
+      .error-code { font-size: 90px; letter-spacing: -3px; }
+      .error-title { font-size: 22px; }
+      .error-message { font-size: 14px; }
+      .actions { flex-direction: column; align-items: center; }
+      .btn { width: 200px; text-align: center; }
+    }
+  </style>
 </head>
 <body>
-    <div class="not-found-container">
-        <div class="error-code">404</div>
-        <h1 class="error-title">页面不存在</h1>
-        <p class="error-message">
-            抱歉，您访问的页面不存在或已被移除。<br>
-            请检查网址是否正确，或返回首页浏览。
-        </p>
-        <div class="error-actions">
-            <a href="/" class="btn btn-primary">返回首页</a>
-            <a href="/notes" class="btn btn-secondary">浏览笔记</a>
-        </div>
-        <p class="home-link">
-            <a href="/">← 回到 程军高的技术博客</a>
-        </p>
+  <div class="container">
+    <div class="error-code">404</div>
+    <h1 class="error-title">页面不存在</h1>
+    <p class="error-message">
+      抱歉，您访问的页面不存在或已被移除。<br>
+      可能是链接有误，或者内容已经迁移。
+    </p>
+    <div class="actions">
+      <a href="/" class="btn btn-primary">返回首页</a>
+      <a href="/notes" class="btn btn-secondary">浏览笔记</a>
     </div>
+    <p class="back-hint">
+      或者访问 <a href="https://www.chengjungao.cn">www.chengjungao.cn</a>
+    </p>
+  </div>
 </body>
 </html>

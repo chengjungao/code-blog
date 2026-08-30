@@ -157,8 +157,11 @@ const md = new MarkdownIt({
   }
 })
 mermaid.initialize({ startOnLoad: false, theme: 'default' })
-const blog = ref(null)
-const comments = ref(null)
+
+// 首屏直出：同步读取预渲染嵌入的数据（必须有 blogId 才可信，防止旧文件中的空数据污染）
+const preloaded = getPreloadedData()
+const blog = ref(preloaded?.blog?.blogId ? preloaded.blog : null)
+const comments = ref(preloaded?.blog?.blogId ? preloaded.comments || null : null)
 const commentPage = ref(1)
 const captchaUrl = ref('')
 const submitting = ref(false)
@@ -251,6 +254,17 @@ const submitComment = async () => {
 
 const loadBlog = async () => {
   try {
+    // 优先使用预渲染嵌入的数据（避免 API 请求导致的页面闪烁）
+    const preloaded = getPreloadedData()
+    if (preloaded?.blog?.blogId) {
+      blog.value = preloaded.blog
+      comments.value = preloaded.comments || null
+      // 同步回写，供 render.js 重新预渲染时提取（避免嵌入数据在迭代渲染中丢失）
+      window.__PRELOADED_DATA__ = preloaded
+      setupSeo()
+      return
+    }
+
     const param = route.params.blogId || route.params.subUrl
     let res
     if (route.name === 'Page') {
@@ -259,8 +273,14 @@ const loadBlog = async () => {
       res = await fetchBlogDetail(param, 1)
     }
     const data = res.data || {}
-    blog.value = data.blog || data
+    // 兼容两种返回结构：{ blog, comments } 嵌套式 与 博客字段直接平铺式；
+    // 错误响应（无 blogId）统一归一为 null，避免空对象被当成有效数据渲染出空卡片
+    const blogData = data.blog || data
+    blog.value = blogData?.blogId ? blogData : null
     comments.value = data.comments || null
+    
+    // 存储数据供预渲染提取（render.js 会注入到 HTML 中）
+    window.__PRELOADED_DATA__ = { blog: blog.value, comments: comments.value }
     
     // 博客不存在时跳转到 404 页面
     if (!blog.value || !blog.value.blogId) {
@@ -277,60 +297,87 @@ const loadBlog = async () => {
       }
     }
     
-    if (blog.value?.blogTitle) {
-      const pageUrl = window.location.origin + window.location.pathname
-      const description = excerpt(blog.value.blogContent, 150)
-      
-      setPageMeta({
-        title: blog.value.blogTitle,
-        description,
-        url: pageUrl,
-        image: blog.value.blogCoverImage || undefined,
-        type: 'article'
-      })
-      
-      // 注入 BlogPosting 结构化数据
-      const jsonLdData = {
-        headline: blog.value.blogTitle,
-        description,
-        datePublished: blog.value.createTime ? new Date(blog.value.createTime).toISOString() : undefined,
-        dateModified: blog.value.updateTime ? new Date(blog.value.updateTime).toISOString() : undefined,
-        author: {
-          '@type': 'Person',
-          name: '程军高',
-          url: 'https://www.chengjungao.cn/'
-        },
-        publisher: {
-          '@type': 'Person',
-          name: '程军高'
-        },
-        mainEntityOfPage: {
-          '@type': 'WebPage',
-          '@id': pageUrl
-        },
-        inLanguage: 'zh-CN'
-      }
-      if (blog.value.blogCoverImage) {
-        jsonLdData.image = blog.value.blogCoverImage
-      }
-      if (blog.value.blogCategoryName) {
-        jsonLdData.articleSection = blog.value.blogCategoryName
-      }
-      if (blog.value.blogTags?.length) {
-        jsonLdData.keywords = blog.value.blogTags.join(', ')
-      }
-      setJsonLd('BlogPosting', jsonLdData)
-    }
+    setupSeo()
   } catch (e) { 
     console.error(e)
-    // API 请求失败时也跳转到 404
     router.replace({ name: 'NotFound' })
   }
 }
 
+/**
+ * 从预渲染 HTML 中提取嵌入的博客数据（避免闪烁）
+ */
+function getPreloadedData() {
+  const el = document.getElementById('__PRELOADED_DATA__')
+  if (!el) return null
+  try {
+    const data = JSON.parse(el.textContent)
+    el.remove() // 读取后移除，防止客户端导航时重复使用
+    return data
+  } catch (e) {
+    return null
+  }
+}
+
+/**
+ * 设置 SEO 元信息和结构化数据
+ */
+const setupSeo = () => {
+  if (!blog.value?.blogTitle) return
+  
+  const pageUrl = window.location.origin + window.location.pathname
+  const description = excerpt(blog.value.blogContent, 150)
+  
+  setPageMeta({
+    title: blog.value.blogTitle,
+    description,
+    url: pageUrl,
+    image: blog.value.blogCoverImage || undefined,
+    type: 'article'
+  })
+  
+  const jsonLdData = {
+    headline: blog.value.blogTitle,
+    description,
+    datePublished: blog.value.createTime ? new Date(blog.value.createTime).toISOString() : undefined,
+    dateModified: blog.value.updateTime ? new Date(blog.value.updateTime).toISOString() : undefined,
+    author: {
+      '@type': 'Person',
+      name: '程军高',
+      url: 'https://www.chengjungao.cn/'
+    },
+    publisher: {
+      '@type': 'Person',
+      name: '程军高'
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': pageUrl
+    },
+    inLanguage: 'zh-CN'
+  }
+  if (blog.value.blogCoverImage) {
+    jsonLdData.image = blog.value.blogCoverImage
+  }
+  if (blog.value.blogCategoryName) {
+    jsonLdData.articleSection = blog.value.blogCategoryName
+  }
+  if (blog.value.blogTags?.length) {
+    jsonLdData.keywords = blog.value.blogTags.join(', ')
+  }
+  setJsonLd('BlogPosting', jsonLdData)
+}
+
 watch(() => route.params, () => loadBlog(), { deep: true })
 onMounted(() => {
-  loadBlog()
+  if (blog.value) {
+    // setup 阶段已从嵌入数据同步初始化：只需补 SEO 元信息，无需再请求 API，避免二次渲染闪烁；
+    // 同时回写数据供 render.js 提取（嵌入数据在 setup 时已被移除）
+    window.__PRELOADED_DATA__ = { blog: blog.value, comments: comments.value }
+    setupSeo()
+  } else {
+    loadBlog()
+  }
   refreshCaptcha()
 })
 

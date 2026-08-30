@@ -1,15 +1,18 @@
 package com.site.blog.my.core.controller.blog;
 
+import com.site.blog.my.core.entity.Blog;
 import com.site.blog.my.core.service.BlogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -125,5 +128,21 @@ public class PathValidationController {
 
         // 其他情况返回 403（Nginx 会转换为 404）
         return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+
+    /**
+     * /notes/{id} 重定向检查（供 Nginx 使用）
+     * 如果博客有自定义路径，返回 301 重定向到 slug；否则返回 404（Nginx 回退到 SPA）
+     */
+    @GetMapping("/note-redirect/{blogId}")
+    public ResponseEntity<Void> noteRedirect(@PathVariable Long blogId) {
+        Blog blog = blogService.getBlogById(blogId);
+        if (blog != null && blog.getBlogSubUrl() != null && !blog.getBlogSubUrl().trim().isEmpty()) {
+            return ResponseEntity.status(HttpStatus.MOVED_PERMANENTLY)
+                    .location(URI.create("/" + blog.getBlogSubUrl().trim()))
+                    .build();
+        }
+        // 无自定义路径，返回 404，Nginx 会回退到 SPA 壳
+        return ResponseEntity.notFound().build();
     }
 }
