@@ -1,9 +1,14 @@
+# robots.txt for https://www.chengjungao.cn
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /admin
+Disallow: /common/kaptcha
+Disallow: /blog/api/
+Disallow: /admin/api/
 
-# 屏蔽无 SEO 价值的页面
-Disallow: /search/
-Disallow: /message
-
-# 站点地图
+# Sitemap
 Sitemap: https://www.chengjungao.cn/sitemap.xml
+
+# LLMs.txt
+LLMs: https://www.chengjungao.cn/llms.txt

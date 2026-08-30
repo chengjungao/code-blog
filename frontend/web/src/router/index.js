@@ -19,6 +19,7 @@ const routes = [
   { path: '/link', name: 'Links', redirect: '/portfolio' },
   { path: '/about', name: 'About', redirect: '/' },
   { path: '/:subUrl', name: 'Page', component: () => import('../views/BlogDetail.vue') },
+  { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/NotFound.vue') },
 ]
 
 const router = createRouter({

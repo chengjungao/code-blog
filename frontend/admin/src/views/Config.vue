@@ -107,18 +107,67 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- SEO 静态渲染 -->
+    <el-row :gutter="20" style="margin-top: 20px;">
+      <el-col :span="24">
+        <el-card>
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600;">SEO 静态渲染</span>
+              <el-tag :type="rendering ? 'warning' : 'success'" size="small">
+                {{ rendering ? '渲染中...' : '空闲' }}
+              </el-tag>
+            </div>
+          </template>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <el-button type="primary" @click="handleRenderAll" :loading="rendering" :disabled="rendering">
+              全量渲染
+            </el-button>
+            <span style="color: #909399; font-size: 13px;">
+              渲染所有已发布博客为静态 HTML，提升 SEO 和首屏加载速度。容器启动时自动渲染，每天凌晨 2 点定时执行。
+            </span>
+          </div>
+          <div v-if="renderOutput" style="margin-top: 16px;">
+            <el-alert
+              :title="renderSuccess ? '渲染成功' : '渲染失败'"
+              :type="renderSuccess ? 'success' : 'error'"
+              :description="renderMessage"
+              show-icon
+              :closable="true"
+              @close="renderOutput = false"
+            />
+            <el-input
+              v-if="renderLog"
+              type="textarea"
+              :model-value="renderLog"
+              readonly
+              :autosize="{ minRows: 3, maxRows: 15 }"
+              style="margin-top: 12px; font-family: monospace;"
+            />
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getConfigList, saveWebsiteConfig, saveUserInfoConfig, saveFooterConfig, uploadFile } from '../api/admin'
+import { getConfigList, saveWebsiteConfig, saveUserInfoConfig, saveFooterConfig, uploadFile, renderAllPages, getRenderStatus } from '../api/admin'
 
 const loading = ref(false)
 const savingWebsite = ref(false)
 const savingUserInfo = ref(false)
 const savingFooter = ref(false)
+
+// SEO 渲染状态
+const rendering = ref(false)
+const renderOutput = ref(false)
+const renderSuccess = ref(false)
+const renderMessage = ref('')
+const renderLog = ref('')
 
 // 原始配置 Map（key-value）
 const configMap = ref({})
@@ -218,7 +267,35 @@ const handleAvatarUpload = async (file) => {
   return false
 }
 
-onMounted(() => fetchData())
+onMounted(() => {
+  fetchData()
+  checkRenderStatus()
+})
+
+const checkRenderStatus = async () => {
+  try {
+    const res = await getRenderStatus()
+    rendering.value = res.data?.rendering || false
+  } catch (e) { /* ignore */ }
+}
+
+const handleRenderAll = async () => {
+  rendering.value = true
+  renderOutput.value = false
+  try {
+    const res = await renderAllPages()
+    renderSuccess.value = res.resultCode === 200
+    renderMessage.value = res.message || (renderSuccess.value ? '渲染完成' : '渲染失败')
+    renderLog.value = res.data?.output || ''
+    renderOutput.value = true
+  } catch (e) {
+    renderSuccess.value = false
+    renderMessage.value = '渲染请求失败'
+    renderOutput.value = true
+  } finally {
+    rendering.value = false
+  }
+}
 </script>
 
 <style scoped>

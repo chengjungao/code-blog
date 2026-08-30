@@ -5,6 +5,7 @@
         <id column="tag_id" jdbcType="INTEGER" property="tagId"/>
         <result column="tag_name" jdbcType="VARCHAR" property="tagName"/>
         <result column="is_deleted" jdbcType="TINYINT" property="isDeleted"/>
+        <result column="blog_count" jdbcType="INTEGER" property="blogCount"/>
         <result column="create_time" jdbcType="TIMESTAMP" property="createTime"/>
     </resultMap>
     <resultMap id="BaseCountResultMap" type="com.site.blog.my.core.entity.BlogTagCount">
@@ -18,7 +19,10 @@
 
     <select id="findTagList" parameterType="Map" resultMap="BaseResultMap">
         select
-        <include refid="Base_Column_List"/>
+        <include refid="Base_Column_List"/>,
+        (select count(*) from tb_blog_tag_relation r
+         inner join tb_blog b on r.blog_id = b.blog_id and b.is_deleted = 0
+         where r.tag_id = tb_blog_tag.tag_id) as blog_count
         from tb_blog_tag
         where is_deleted=0
         order by tag_id desc
@@ -52,6 +56,13 @@
         <include refid="Base_Column_List"/>
         from tb_blog_tag
         where tag_name = #{tagName,jdbcType=VARCHAR} AND is_deleted = 0
+    </select>
+
+    <select id="selectByTagNameIncludeDeleted" parameterType="java.lang.String" resultMap="BaseResultMap">
+        select
+        <include refid="Base_Column_List"/>
+        from tb_blog_tag
+        where tag_name = #{tagName,jdbcType=VARCHAR}
     </select>
 
     <update id="deleteByPrimaryKey" parameterType="java.lang.Integer">

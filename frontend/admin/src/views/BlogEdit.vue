@@ -100,7 +100,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { MdEditor } from 'md-editor-v3'
 import 'md-editor-v3/lib/style.css'
-import { saveBlog, getBlogEditData, uploadFile } from '../api/admin'
+import { saveBlog, updateBlog, getBlogEditData, uploadFile } from '../api/admin'
 
 const route = useRoute()
 const router = useRouter()
@@ -185,7 +185,11 @@ const handleSave = async () => {
   }
   saving.value = true
   try {
-    await saveBlog(form.value)
+    if (isEdit.value && form.value.blogId) {
+      await updateBlog(form.value)
+    } else {
+      await saveBlog(form.value)
+    }
     ElMessage.success('保存成功')
     router.push('/blog/list')
   } catch (e) {

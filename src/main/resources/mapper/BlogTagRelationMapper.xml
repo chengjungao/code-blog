@@ -26,13 +26,22 @@
 
     <select id="selectDistinctTagIds" resultType="java.lang.Long">
         select
-        DISTINCT(tag_id)
-        from tb_blog_tag_relation
-        where tag_id in
+        DISTINCT(r.tag_id)
+        from tb_blog_tag_relation r
+        inner join tb_blog b on r.blog_id = b.blog_id and b.is_deleted = 0
+        where r.tag_id in
         <foreach item="id" collection="array" open="(" separator="," close=")">
             #{id}
         </foreach>
     </select>
+
+    <delete id="deleteByTagIds">
+        delete from tb_blog_tag_relation
+        where tag_id in
+        <foreach item="id" collection="tagIds" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
 
     <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
     delete from tb_blog_tag_relation

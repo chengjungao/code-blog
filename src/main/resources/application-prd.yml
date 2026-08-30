@@ -2,6 +2,9 @@
 file:
   attachment: /var/blog/data/
 
+blog:
+  base-url: ${BLOG_BASE_URL:https://www.chengjungao.cn}
+
 solr:
   home: /var/blog/solr/
 

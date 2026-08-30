@@ -82,10 +82,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { fetchBlogDetail, fetchPageBySubUrl, submitComment as apiSubmitComment } from '../api/blog'
-import { setPageMeta, excerpt } from '../utils/seo'
+import { setPageMeta, excerpt, setJsonLd, removeJsonLd } from '../utils/seo'
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js/lib/core'
 import java from 'highlight.js/lib/languages/java'
@@ -131,6 +131,7 @@ hljs.registerLanguage('ini', properties)
 
 const props = defineProps({ config: { type: Object, default: () => ({}) } })
 const route = useRoute()
+const router = useRouter()
 
 const md = new MarkdownIt({
   html: true,
@@ -260,20 +261,81 @@ const loadBlog = async () => {
     const data = res.data || {}
     blog.value = data.blog || data
     comments.value = data.comments || null
+    
+    // 博客不存在时跳转到 404 页面
+    if (!blog.value || !blog.value.blogId) {
+      router.replace({ name: 'NotFound' })
+      return
+    }
+    
+    // 如果通过 blogId 访问且文章有自定义路径，重定向到自定义路径
+    if (route.name !== 'Page' && blog.value?.blogSubUrl && blog.value.blogSubUrl.trim()) {
+      const customPath = '/' + blog.value.blogSubUrl.trim()
+      if (customPath !== route.path) {
+        router.replace(customPath)
+        return
+      }
+    }
+    
     if (blog.value?.blogTitle) {
+      const pageUrl = window.location.origin + window.location.pathname
+      const description = excerpt(blog.value.blogContent, 150)
+      
       setPageMeta({
         title: blog.value.blogTitle,
-        description: excerpt(blog.value.blogContent, 150),
-        url: window.location.origin + window.location.pathname
+        description,
+        url: pageUrl,
+        image: blog.value.blogCoverImage || undefined,
+        type: 'article'
       })
+      
+      // 注入 BlogPosting 结构化数据
+      const jsonLdData = {
+        headline: blog.value.blogTitle,
+        description,
+        datePublished: blog.value.createTime ? new Date(blog.value.createTime).toISOString() : undefined,
+        dateModified: blog.value.updateTime ? new Date(blog.value.updateTime).toISOString() : undefined,
+        author: {
+          '@type': 'Person',
+          name: '程军高',
+          url: 'https://www.chengjungao.cn/'
+        },
+        publisher: {
+          '@type': 'Person',
+          name: '程军高'
+        },
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': pageUrl
+        },
+        inLanguage: 'zh-CN'
+      }
+      if (blog.value.blogCoverImage) {
+        jsonLdData.image = blog.value.blogCoverImage
+      }
+      if (blog.value.blogCategoryName) {
+        jsonLdData.articleSection = blog.value.blogCategoryName
+      }
+      if (blog.value.blogTags?.length) {
+        jsonLdData.keywords = blog.value.blogTags.join(', ')
+      }
+      setJsonLd('BlogPosting', jsonLdData)
     }
-  } catch (e) { console.error(e) }
+  } catch (e) { 
+    console.error(e)
+    // API 请求失败时也跳转到 404
+    router.replace({ name: 'NotFound' })
+  }
 }
 
 watch(() => route.params, () => loadBlog(), { deep: true })
 onMounted(() => {
   loadBlog()
   refreshCaptcha()
+})
+
+onUnmounted(() => {
+  removeJsonLd('BlogPosting')
 })
 </script>
 

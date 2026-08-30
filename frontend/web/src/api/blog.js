@@ -31,3 +31,15 @@ export const assistantChat = (message, history = []) =>
 // 页面访问统计埋点（fire-and-forget，失败不影响页面）
 export const reportVisit = (pagePath) =>
   request.post('/stat', { pagePath }).catch(() => {})
+
+/**
+ * 生成博客链接：优先使用自定义路径（blogSubUrl），否则使用 /notes/:blogId
+ * @param {Object} blog - 博客对象，包含 blogId 和 blogSubUrl
+ * @returns {string} 路由路径
+ */
+export const blogLink = (blog) => {
+  if (blog?.blogSubUrl && blog.blogSubUrl.trim()) {
+    return '/' + blog.blogSubUrl.trim()
+  }
+  return '/notes/' + blog.blogId
+}

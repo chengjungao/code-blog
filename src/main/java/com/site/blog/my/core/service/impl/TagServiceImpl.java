@@ -10,6 +10,7 @@ import com.site.blog.my.core.util.PageQueryUtil;
 import com.site.blog.my.core.util.PageResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
@@ -37,23 +38,31 @@ public class TagServiceImpl implements TagService {
 
     @Override
     public Boolean saveTag(String tagName) {
-        BlogTag temp = blogTagMapper.selectByTagName(tagName);
+        BlogTag temp = blogTagMapper.selectByTagNameIncludeDeleted(tagName);
         if (temp == null) {
             BlogTag blogTag = new BlogTag();
             blogTag.setTagName(tagName);
             return blogTagMapper.insertSelective(blogTag) > 0;
         }
+        if (temp.getIsDeleted() != null && temp.getIsDeleted() == 1) {
+            //恢复已软删的同名标签（tag_name唯一索引不允许重复插入）
+            temp.setIsDeleted((byte) 0);
+            return blogTagMapper.updateByPrimaryKeySelective(temp) > 0;
+        }
         return false;
     }
 
     @Override
+    @Transactional
     public Boolean deleteBatch(Integer[] ids) {
-        //已存在关联关系不删除
+        //仅统计与有效文章（未删除）的关联关系，已删文章的孤立关联不阻止删除
         List<Long> relations = relationMapper.selectDistinctTagIds(ids);
         if (!CollectionUtils.isEmpty(relations)) {
             return false;
         }
-        //删除tag
+        //级联清理关联关系（含已删文章遗留的孤立关联）
+        relationMapper.deleteByTagIds(ids);
+        //删除tag（软删除）
         return blogTagMapper.deleteBatch(ids) > 0;
     }
 

@@ -110,7 +110,7 @@
         <router-link class="btn" to="/notes">进入笔记</router-link>
       </div>
       <div class="note-list" v-if="latestNotes.length">
-        <router-link class="note-row" v-for="note in latestNotes" :key="note.blogId" :to="'/notes/' + note.blogId">
+        <router-link class="note-row" v-for="note in latestNotes" :key="note.blogId" :to="blogLink(note)">
           <span>{{ note.blogCategoryName || '技术笔记' }}</span>
           <strong>{{ note.blogTitle }}</strong>
         </router-link>
@@ -122,7 +122,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { fetchIndex } from '../api/blog'
+import { fetchIndex, blogLink } from '../api/blog'
 import { setPageMeta } from '../utils/seo'
 import heroImage from '../assets/hero.png'
 import { portfolioItems, profile } from '../content/profile'
@@ -133,7 +133,8 @@ const featuredWorks = computed(() => portfolioItems.slice(0, 3))
 onMounted(async () => {
   setPageMeta({
     title: '',
-    description: '拾光集 — 程军高的个人空间，11 年搜索架构与 AI 工程实践，记录搜索引擎架构、AI 搜索、Agent 与 MCP 平台的技术笔记，也写写做菜和读书。'
+    description: '拾光集 — 程军高的个人空间，11 年搜索架构与 AI 工程实践，记录搜索引擎架构、AI 搜索、Agent 与 MCP 平台的技术笔记，也写写做菜和读书。',
+    url: window.location.origin + '/'
   })
   try {
     const res = await fetchIndex(1)

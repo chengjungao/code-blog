@@ -69,13 +69,18 @@ public class BlogServiceImpl implements BlogService {
             //所有的tag对象，用于建立关系数据
             List<BlogTag> allTagsList = new ArrayList<>();
             for (int i = 0; i < tags.length; i++) {
-                BlogTag tag = tagMapper.selectByTagName(tags[i]);
+                BlogTag tag = tagMapper.selectByTagNameIncludeDeleted(tags[i]);
                 if (tag == null) {
                     //不存在就新增
                     BlogTag tempTag = new BlogTag();
                     tempTag.setTagName(tags[i]);
                     tagListForInsert.add(tempTag);
                 } else {
+                    //已软删的同名标签恢复后复用（tag_name唯一索引不允许重复插入）
+                    if (tag.getIsDeleted() != null && tag.getIsDeleted() == 1) {
+                        tag.setIsDeleted((byte) 0);
+                        tagMapper.updateByPrimaryKeySelective(tag);
+                    }
                     allTagsList.add(tag);
                 }
             }
@@ -169,13 +174,18 @@ public class BlogServiceImpl implements BlogService {
         //所有的tag对象，用于建立关系数据
         List<BlogTag> allTagsList = new ArrayList<>();
         for (int i = 0; i < tags.length; i++) {
-            BlogTag tag = tagMapper.selectByTagName(tags[i]);
+            BlogTag tag = tagMapper.selectByTagNameIncludeDeleted(tags[i]);
             if (tag == null) {
                 //不存在就新增
                 BlogTag tempTag = new BlogTag();
                 tempTag.setTagName(tags[i]);
                 tagListForInsert.add(tempTag);
             } else {
+                //已软删的同名标签恢复后复用（tag_name唯一索引不允许重复插入）
+                if (tag.getIsDeleted() != null && tag.getIsDeleted() == 1) {
+                    tag.setIsDeleted((byte) 0);
+                    tagMapper.updateByPrimaryKeySelective(tag);
+                }
                 allTagsList.add(tag);
             }
         }

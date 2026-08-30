@@ -256,3 +256,20 @@ export async function uploadFile(file) {
   })
   return res.data
 }
+
+// ===== SEO 静态渲染 =====
+export function renderAllPages() {
+  return crud({ url: '/render/all', method: 'post' })
+}
+
+export function renderBlogPage(blogId) {
+  return crud({ url: `/render/blog/${blogId}`, method: 'post' })
+}
+
+export function getRenderStatus() {
+  return crud({ url: '/render/status', method: 'get' })
+}
+
+export function getRenderUrls() {
+  return crud({ url: '/render/urls', method: 'get' })
+}

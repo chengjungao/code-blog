@@ -16,6 +16,8 @@ public interface BlogTagMapper {
 
     BlogTag selectByTagName(String tagName);
 
+    BlogTag selectByTagNameIncludeDeleted(String tagName);
+
     int updateByPrimaryKeySelective(BlogTag record);
 
     int updateByPrimaryKey(BlogTag record);

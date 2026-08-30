@@ -12,7 +12,7 @@
       <div>
         <div class="note-grid" v-if="blogs.length">
           <article class="note-card" v-for="blog in blogs" :key="blog.blogId">
-            <router-link :to="'/notes/' + blog.blogId" class="note-cover">
+            <router-link :to="blogLink(blog)" class="note-cover">
               <img v-if="blog.blogCoverImage" :src="blog.blogCoverImage" :alt="blog.blogTitle" />
               <div v-else class="cover-placeholder">{{ getInitial(blog.blogTitle) }}</div>
             </router-link>
@@ -21,7 +21,7 @@
                 {{ blog.blogCategoryName || '技术笔记' }}
               </router-link>
               <h2>
-                <router-link :to="'/notes/' + blog.blogId">{{ blog.blogTitle }}</router-link>
+                <router-link :to="blogLink(blog)">{{ blog.blogTitle }}</router-link>
               </h2>
             </div>
           </article>
@@ -47,11 +47,11 @@
       <aside class="notes-sidebar">
         <section class="side-panel" v-if="newBlogs.length">
           <h3>最新发布</h3>
-          <router-link v-for="b in newBlogs" :key="b.blogId" :to="'/notes/' + b.blogId">{{ b.blogTitle }}</router-link>
+          <router-link v-for="b in newBlogs" :key="b.blogId" :to="blogLink(b)">{{ b.blogTitle }}</router-link>
         </section>
         <section class="side-panel" v-if="hotBlogs.length">
           <h3>高频阅读</h3>
-          <router-link v-for="b in hotBlogs" :key="b.blogId" :to="'/notes/' + b.blogId">{{ b.blogTitle }}</router-link>
+          <router-link v-for="b in hotBlogs" :key="b.blogId" :to="blogLink(b)">{{ b.blogTitle }}</router-link>
         </section>
         <section class="side-panel" v-if="hotTags.length">
           <h3>标签</h3>
@@ -69,7 +69,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchIndex } from '../api/blog'
+import { fetchIndex, blogLink } from '../api/blog'
 import { setPageMeta } from '../utils/seo'
 
 const route = useRoute()
@@ -99,7 +99,8 @@ const goPage = (p) => {
 const loadData = async (page) => {
   setPageMeta({
     title: '技术笔记',
-    description: '搜索、AI、架构、工程实践——写下来才真正属于自己的。踩坑记录、系统设计和读书笔记。'
+    description: '搜索、AI、架构、工程实践——写下来才真正属于自己的。踩坑记录、系统设计和读书笔记。',
+    url: window.location.origin + window.location.pathname
   })
   try {
     const res = await fetchIndex(page)

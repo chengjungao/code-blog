@@ -18,6 +18,8 @@ public interface BlogTagRelationMapper {
 
     List<Long> selectDistinctTagIds(Integer[] tagIds);
 
+    int deleteByTagIds(@Param("tagIds") Integer[] tagIds);
+
     int updateByPrimaryKeySelective(BlogTagRelation record);
 
     int updateByPrimaryKey(BlogTagRelation record);

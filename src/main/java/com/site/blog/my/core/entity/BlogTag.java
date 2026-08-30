@@ -11,6 +11,9 @@ public class BlogTag {
 
     private Byte isDeleted;
 
+    /** 关联的有效笔记数（非表字段，查询时统计） */
+    private Integer blogCount;
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private Date createTime;
 
@@ -36,6 +39,14 @@ public class BlogTag {
 
     public void setIsDeleted(Byte isDeleted) {
         this.isDeleted = isDeleted;
+    }
+
+    public Integer getBlogCount() {
+        return blogCount;
+    }
+
+    public void setBlogCount(Integer blogCount) {
+        this.blogCount = blogCount;
     }
 
     public Date getCreateTime() {

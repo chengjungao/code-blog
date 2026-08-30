@@ -6,7 +6,7 @@
 
     <div class="blog-grid" v-if="blogs.length">
       <article class="blog-card" v-for="blog in blogs" :key="blog.blogId">
-        <router-link :to="'/notes/' + blog.blogId" class="card-cover">
+        <router-link :to="blogLink(blog)" class="card-cover">
           <img v-if="blog.blogCoverImage" :src="blog.blogCoverImage" :alt="blog.blogTitle" />
           <div v-else class="cover-placeholder">{{ getInitial(blog.blogTitle) }}</div>
         </router-link>
@@ -17,7 +17,7 @@
             </router-link>
           </div>
           <h3 class="card-title">
-            <router-link :to="'/notes/' + blog.blogId">{{ blog.blogTitle }}</router-link>
+            <router-link :to="blogLink(blog)">{{ blog.blogTitle }}</router-link>
           </h3>
         </div>
       </article>
@@ -30,7 +30,7 @@
         <h4>高频阅读</h4>
         <ul class="sidebar-list">
           <li v-for="b in hotBlogs" :key="b.blogId">
-            <router-link :to="'/notes/' + b.blogId">{{ b.blogTitle }}</router-link>
+            <router-link :to="blogLink(b)">{{ b.blogTitle }}</router-link>
           </li>
         </ul>
       </div>
@@ -38,7 +38,7 @@
         <h4>最新发布</h4>
         <ul class="sidebar-list">
           <li v-for="b in newBlogs" :key="b.blogId">
-            <router-link :to="'/notes/' + b.blogId">{{ b.blogTitle }}</router-link>
+            <router-link :to="blogLink(b)">{{ b.blogTitle }}</router-link>
           </li>
         </ul>
       </div>
@@ -71,10 +71,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { fetchCategoryBlogs, fetchTagBlogs, fetchSearchBlogs } from '../api/blog'
-import { setPageMeta } from '../utils/seo'
+import { fetchCategoryBlogs, fetchTagBlogs, fetchSearchBlogs, blogLink } from '../api/blog'
+import { setPageMeta, setJsonLd, removeJsonLd } from '../utils/seo'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,10 +115,24 @@ const loadData = async () => {
   const page = parseInt(route.params.page) || 1
   currPage.value = page
   keyword.value = name
+  
+  const pageUrl = window.location.origin + window.location.pathname
   setPageMeta({
     title: `${listTitle.value}${name ? '：' + name : ''}`,
-    description: `程军高关于「${name || '技术笔记'}」的笔记列表。`
+    description: `程军高关于「${name || '技术笔记'}」的笔记列表。`,
+    url: pageUrl
   })
+  
+  // 注入 BreadcrumbList 结构化数据
+  const typeLabel = route.name === 'Category' ? '分类' : route.name === 'Tag' ? '标签' : '搜索'
+  setJsonLd('BreadcrumbList', {
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: '首页', item: 'https://www.chengjungao.cn/' },
+      { '@type': 'ListItem', position: 2, name: typeLabel, item: window.location.origin + '/' + typeLabel.toLowerCase() },
+      { '@type': 'ListItem', position: 3, name: name || typeLabel }
+    ]
+  })
+  
   try {
     let res
     if (route.name === 'Category') res = await fetchCategoryBlogs(name, page)
@@ -137,6 +151,7 @@ const loadData = async () => {
 watch(() => route.params.name, () => loadData())
 watch(() => route.params.page, () => loadData())
 onMounted(() => loadData())
+onUnmounted(() => removeJsonLd('BreadcrumbList'))
 </script>
 
 <style scoped>

@@ -8,6 +8,8 @@ public class SimpleBlogListVO implements Serializable {
 
     private String blogTitle;
 
+    private String blogSubUrl;
+
     public Long getBlogId() {
         return blogId;
     }
@@ -22,5 +24,13 @@ public class SimpleBlogListVO implements Serializable {
 
     public void setBlogTitle(String blogTitle) {
         this.blogTitle = blogTitle;
+    }
+
+    public String getBlogSubUrl() {
+        return blogSubUrl;
+    }
+
+    public void setBlogSubUrl(String blogSubUrl) {
+        this.blogSubUrl = blogSubUrl == null ? null : blogSubUrl.trim();
     }
 }
