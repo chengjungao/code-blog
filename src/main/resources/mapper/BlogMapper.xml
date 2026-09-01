@@ -49,6 +49,18 @@
         where blog_status = 1 and is_deleted = 0
         order by blog_id desc
     </select>
+    <select id="countPublished" resultType="int">
+        select count(*) from tb_blog where blog_status = 1 and is_deleted = 0
+    </select>
+    <select id="findPublishedWithContent" resultMap="ResultMapWithBLOBs">
+        select
+        <include refid="Base_Column_List"/>,
+        <include refid="Blob_Column_List"/>
+        from tb_blog
+        where blog_status = 1 and is_deleted = 0
+        order by blog_id asc
+        limit #{limit} offset #{offset}
+    </select>
    <select id="findBlogList" parameterType="Map" resultMap="BaseResultMap">
         select
         <include refid="Base_Column_List"/>

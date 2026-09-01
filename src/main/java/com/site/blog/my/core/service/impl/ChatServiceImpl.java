@@ -3,8 +3,10 @@ package com.site.blog.my.core.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.site.blog.my.core.entity.BlogChunk;
 import com.site.blog.my.core.entity.Message;
 import com.site.blog.my.core.service.ChatService;
+import com.site.blog.my.core.solr.BlogSolrServer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -22,6 +24,9 @@ public class ChatServiceImpl implements ChatService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private BlogSolrServer blogSolrServer;
 
     @Value("${chat.server.url:}")
     private String url;
@@ -108,10 +113,13 @@ public class ChatServiceImpl implements ChatService {
 
     private HttpEntity<String> getStringHttpEntityVision(String content,HttpHeaders headers) {
         JSONObject requestBody = new JSONObject();
-        requestBody.put("model", chatModel);
+        requestBody.put("model", visionModel);
         requestBody.put("temperature", 0.1);
-        requestBody.put("max_tokens", 512);
-        requestBody.put("enable_thinking",false);
+        requestBody.put("max_tokens", 2048);
+        // GLM-5.3-Flash 强制思考模式，不支持 enable_thinking:false，改用 thinking:{level:"low"} 控制
+        JSONObject thinking = new JSONObject();
+        thinking.put("level", "low");
+        requestBody.put("thinking", thinking);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", "你是专业的营养师，能帮助分析配料表成分"));
         JSONArray imageContent = new JSONArray();
@@ -123,6 +131,16 @@ public class ChatServiceImpl implements ChatService {
 
         return new HttpEntity<>(requestBody.toString(), headers);
     }
+
+    private static final String KEYWORD_EXTRACT_PROMPT =
+        "你是一个搜索关键词提取工具。根据用户问题和对话上下文，提取2-5个最适合作为搜索引擎查询的关键词。\n"
+        + "规则：\n"
+        + "- 提取名词、专有名词、技术术语、版本号等关键信息\n"
+        + "- 去除疑问词、语气词、代词\n"
+        + "- 必须保留用户原始用词和语言，禁止翻译或改写\n"
+        + "- 如果是多轮对话，结合上下文消解指代（如「它」→具体名词），消解后仍用中文\n"
+        + "- 输出纯关键词，用英文逗号分隔，不要其他任何文字\n"
+        + "- 如果无法提取有效关键词（如纯寒暄），输出 EMPTY";
 
     private static final String ASSISTANT_SYSTEM_PROMPT =
         "你是程军高的智能分身，在「拾光集」个人网站上与访客对话。你就是程军高本人。\n\n"
@@ -146,6 +164,23 @@ public class ChatServiceImpl implements ChatService {
     @Override
     public String assistantChat(String content, String historyJson) {
         try {
+            // === Step 1: LLM 提取搜索关键词 ===
+            String keywords = extractSearchKeywords(content, historyJson);
+
+            // === Step 2: Solr 召回相关分块 ===
+            String context = "";
+            if (keywords != null) {
+                context = buildContextFromSolr(keywords);
+            }
+
+            // === Step 3: 构建增强的 system prompt 并调用 LLM ===
+            String enhancedPrompt = ASSISTANT_SYSTEM_PROMPT;
+            if (!context.isEmpty()) {
+                enhancedPrompt += "\n\n【站内文章参考】\n"
+                    + "以下是网站文章中与用户问题相关的内容片段，请参考这些信息来回答：\n\n"
+                    + context;
+            }
+
             HttpHeaders headers = new HttpHeaders();
             headers.set("Content-Type", "application/json");
             headers.set("Authorization", "Bearer " + visionToken);
@@ -157,7 +192,7 @@ public class ChatServiceImpl implements ChatService {
             requestBody.put("enable_thinking", false);
 
             JSONArray messages = new JSONArray();
-            messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", ASSISTANT_SYSTEM_PROMPT));
+            messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", enhancedPrompt));
 
             if (historyJson != null && !historyJson.trim().isEmpty()) {
                 JSONArray history = JSON.parseArray(historyJson);
@@ -179,6 +214,80 @@ public class ChatServiceImpl implements ChatService {
 
         } catch (Exception e) {
             return "分身暂时开小差了，稍后再试一下吧～";
+        }
+    }
+
+    /**
+     * 调用 LLM 从用户问题中提取搜索关键词
+     */
+    private String extractSearchKeywords(String userQuestion, String historyJson) {
+        try {
+            JSONArray messages = new JSONArray();
+            messages.add(new JSONObject().fluentPut("role", "system")
+                .fluentPut("content", KEYWORD_EXTRACT_PROMPT));
+
+            // 注入最近 2 轮对话帮助消解指代
+            if (historyJson != null && !historyJson.trim().isEmpty()) {
+                JSONArray history = JSON.parseArray(historyJson);
+                int start = Math.max(0, history.size() - 4); // 最近 2 轮 = 4 条消息
+                for (int i = start; i < history.size(); i++) {
+                    JSONObject msg = history.getJSONObject(i);
+                    messages.add(new JSONObject()
+                        .fluentPut("role", msg.getString("role"))
+                        .fluentPut("content", msg.getString("content")));
+                }
+            }
+
+            messages.add(new JSONObject().fluentPut("role", "user").fluentPut("content", userQuestion));
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("model", chatModel);
+            requestBody.put("temperature", 0.1);
+            requestBody.put("max_tokens", 64);
+            requestBody.put("enable_thinking", false);
+            requestBody.put("messages", messages);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", "application/json");
+            headers.set("Authorization", "Bearer " + visionToken);
+            HttpEntity<String> entity = new HttpEntity<>(requestBody.toString(), headers);
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            String keywords = JSON.parseObject(response.getBody())
+                .getJSONArray("choices").getJSONObject(0)
+                .getJSONObject("message").getString("content").trim();
+
+            if ("EMPTY".equals(keywords) || keywords.isEmpty()) {
+                return null;
+            }
+            return keywords;
+        } catch (Exception e) {
+            // 关键词提取失败，降级为原始问题
+            return userQuestion;
+        }
+    }
+
+    /**
+     * 用关键词从 Solr 召回相关分块，拼接为上下文字符串
+     */
+    private String buildContextFromSolr(String keywords) {
+        try {
+            List<BlogChunk> chunks = blogSolrServer.retrieveChunks(keywords, 3);
+            if (chunks.isEmpty()) return "";
+
+            StringBuilder sb = new StringBuilder();
+            for (BlogChunk chunk : chunks) {
+                sb.append("【").append(chunk.getBlogTitle());
+                if (chunk.getChunkTitle() != null && !chunk.getChunkTitle().isEmpty()) {
+                    sb.append(" - ").append(chunk.getChunkTitle());
+                }
+                sb.append("】\n");
+                sb.append(chunk.getChunkContent().trim());
+                sb.append("\n\n");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
         }
     }
 }

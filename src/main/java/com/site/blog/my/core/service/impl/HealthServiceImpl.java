@@ -91,8 +91,12 @@ public class HealthServiceImpl implements HealthService {
 
         JSONObject body = new JSONObject();
         body.put("model", visionModel);
-        body.put("enable_thinking", false);
+        // GLM-5.3-Flash 强制思考模式，不支持 enable_thinking:false，改用 thinking:{level:"low"} 控制
+        JSONObject thinking = new JSONObject();
+        thinking.put("level", "low");
+        body.put("thinking", thinking);
         body.put("temperature", 0);
+        body.put("max_tokens", 2048);
 
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", systemPrompt));

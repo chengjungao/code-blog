@@ -54,6 +54,18 @@ public class Blog {
 	@Field("blogContent")
     private String blogContent;
 
+	/** Solr 文档类型标识：blog=文章, chunk=分块。仅用于 Solr 索引，不映射数据库字段 */
+	@Field("docType")
+	private String docType;
+
+	public String getDocType() {
+		return docType;
+	}
+
+	public void setDocType(String docType) {
+		this.docType = docType;
+	}
+
     public Long getBlogId() {
         return blogId;
     }

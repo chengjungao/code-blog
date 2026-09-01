@@ -10,11 +10,11 @@ solr:
 
 chat:
   server:
-    url: ${CHAT_SERVER_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
-  model: ${CHAT_MODEL:qwen3.7-plus}
+    url: ${CHAT_SERVER_URL:https://open.bigmodel.cn/api/paas/v4/chat/completions}
+  model: ${CHAT_MODEL:glm-5.2}
 
 vision:
   server:
-    url: ${VISION_SERVER_URL:https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+    url: ${VISION_SERVER_URL:https://open.bigmodel.cn/api/paas/v4/chat/completions}
   token: ${VISION_TOKEN:}
-  model: ${VISION_MODEL:qwen3.7-plus}
+  model: ${VISION_MODEL:glm-5.3-flash}

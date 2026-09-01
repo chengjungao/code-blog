@@ -6,9 +6,11 @@ import com.site.blog.my.core.controller.vo.SimpleBlogListVO;
 import com.site.blog.my.core.dao.*;
 import com.site.blog.my.core.entity.Blog;
 import com.site.blog.my.core.entity.BlogCategory;
+import com.site.blog.my.core.entity.BlogChunk;
 import com.site.blog.my.core.entity.BlogTag;
 import com.site.blog.my.core.entity.BlogTagRelation;
 import com.site.blog.my.core.service.BlogService;
+import com.site.blog.my.core.service.BlogChunkService;
 import com.site.blog.my.core.solr.BlogSolrServer;
 import com.site.blog.my.core.util.PageQueryUtil;
 import com.site.blog.my.core.util.PageResult;
@@ -38,6 +40,8 @@ public class BlogServiceImpl implements BlogService {
     
     @Autowired
     private BlogSolrServer blogSolrServer;
+    @Autowired
+    private BlogChunkService blogChunkService;
 
     /** 生活类分类名（技术笔记列表查询时需排除，它们归入「生活杂记」页） */
     private static final List<String> LIFE_CATEGORY_NAMES = new ArrayList<>(Arrays.asList("读书心得", "做菜笔记"));
@@ -64,6 +68,17 @@ public class BlogServiceImpl implements BlogService {
         if (blogMapper.insertSelective(blog) > 0) {
         	
         	blogSolrServer.add(blog);
+        	// 同步分块索引（仅发布状态的文章）
+        	if (blog.getBlogStatus() != null && blog.getBlogStatus() == 1) {
+        		try {
+        			List<BlogChunk> chunks = blogChunkService.splitBlog(blog);
+        			if (!chunks.isEmpty()) {
+        				blogSolrServer.addChunks(chunks);
+        			}
+        		} catch (Exception e) {
+        			System.err.println("[WARN] Chunk indexing failed for new blog: " + e.getMessage());
+        		}
+        	}
             //新增的tag对象
             List<BlogTag> tagListForInsert = new ArrayList<>();
             //所有的tag对象，用于建立关系数据
@@ -122,6 +137,12 @@ public class BlogServiceImpl implements BlogService {
     		String[] blogIds = new String[ids.length]; 
     		for(int i = 0; i < ids.length ; i ++) {
     			blogIds[i] = String.valueOf(ids[i]);
+    			// 同步删除分块索引
+    			try {
+    				blogSolrServer.deleteChunksByBlogId(Long.valueOf(ids[i]));
+    			} catch (Exception e) {
+    				System.err.println("[WARN] Chunk deletion failed for blog " + ids[i] + ": " + e.getMessage());
+    			}
     		}
     		blogSolrServer.delete(blogIds);
     		return true;
@@ -210,6 +231,18 @@ public class BlogServiceImpl implements BlogService {
         blogTagRelationMapper.batchInsert(blogTagRelations);
         if (blogMapper.updateByPrimaryKeySelective(blogForUpdate) > 0) {
         	blogSolrServer.add(blogForUpdate);
+        	// 同步分块索引：先删旧分块，再根据发布状态决定是否重建
+        	try {
+        		blogSolrServer.deleteChunksByBlogId(blogForUpdate.getBlogId());
+        		if (blogForUpdate.getBlogStatus() != null && blogForUpdate.getBlogStatus() == 1) {
+        			List<BlogChunk> chunks = blogChunkService.splitBlog(blogForUpdate);
+        			if (!chunks.isEmpty()) {
+        				blogSolrServer.addChunks(chunks);
+        			}
+        		}
+        	} catch (Exception e) {
+        		System.err.println("[WARN] Chunk re-indexing failed for blog " + blogForUpdate.getBlogId() + ": " + e.getMessage());
+        	}
             return "success";
         }
         return "修改失败";

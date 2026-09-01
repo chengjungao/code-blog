@@ -54,6 +54,13 @@
     <field name="createTime" type="pdate" indexed="true" stored="true" multiValued="false" />
     <field name="updateTime" type="pdate" indexed="true" stored="true" multiValued="false" />
     <field name="blogContent" type="string" indexed="true" stored="true" multiValued="false" />
+
+    <!-- 文档类型：blog=文章, chunk=分块（用于区分文章和分块文档） -->
+    <field name="docType" type="string" indexed="true" stored="true" multiValued="false" />
+    <!-- 分块专用字段 -->
+    <field name="chunkIndex" type="pint" indexed="true" stored="true" multiValued="false" />
+    <field name="chunkTitle" type="string" indexed="true" stored="true" multiValued="false" />
+    <field name="chunkContent" type="text" indexed="true" stored="true" multiValued="false" />
  
  	<field name="default_search" type="text" indexed="true" stored="true"/>
  	
@@ -61,6 +68,9 @@
     <copyField source="blogCategoryName" dest="default_search"/>
     <copyField source="blogTags" dest="default_search"/>
     <copyField source="blogContent" dest="default_search"/>
+    <!-- 分块字段也复制到搜索聚合字段 -->
+    <copyField source="chunkTitle" dest="default_search"/>
+    <copyField source="chunkContent" dest="default_search"/>
 
 	
     <fieldType name="pint" class="solr.IntPointField" docValues="true"/>

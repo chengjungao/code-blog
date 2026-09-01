@@ -27,6 +27,11 @@ public interface BlogMapper {
 
     List<Blog> findAllPublished();
 
+    /** 分页加载已发布文章（含 blogContent），用于 Solr 分块索引 */
+    List<Blog> findPublishedWithContent(@Param("offset") int offset, @Param("limit") int limit);
+
+    int countPublished();
+
     List<Blog> findBlogListByType(@Param("type") int type, @Param("limit") int limit, @Param("excludeCategoryNames") List<String> excludeCategoryNames);
 
     int getTotalBlogs(PageQueryUtil pageUtil);
