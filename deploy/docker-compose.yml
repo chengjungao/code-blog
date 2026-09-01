@@ -20,5 +20,7 @@
       - /var/blog/data:/var/blog/data
       # Solr 索引数据
       - /var/blog/solr:/var/blog/solr
+      # 预渲染静态页面持久化（避免容器重建清空 pages，导致 SEO 预渲染短暂失效）
+      - /var/blog/pages:/usr/share/nginx/html/blog/pages
       # SSL 证书：宿主机 /etc/ssl/nginx/ → 容器内同路径（只读）
       - /etc/ssl/nginx:/etc/ssl/nginx:ro

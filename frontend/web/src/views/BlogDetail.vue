@@ -78,6 +78,7 @@
       </section>
     </article>
   </div>
+  <div v-else-if="loading" class="loading-state">笔记加载中...</div>
   <div v-else class="empty-state">笔记不存在或已删除</div>
 </template>
 
@@ -162,6 +163,8 @@ mermaid.initialize({ startOnLoad: false, theme: 'default' })
 const preloaded = getPreloadedData()
 const blog = ref(preloaded?.blog?.blogId ? preloaded.blog : null)
 const comments = ref(preloaded?.blog?.blogId ? preloaded.comments || null : null)
+// 无预渲染注入数据时进入加载态（SPA 内导航场景），避免误显示"笔记不存在"
+const loading = ref(!preloaded?.blog?.blogId)
 const commentPage = ref(1)
 const captchaUrl = ref('')
 const submitting = ref(false)
@@ -175,6 +178,13 @@ const renderedContent = computed(() => {
   if (!blog.value?.blogContent) return ''
   return md.render(blog.value.blogContent)
 })
+
+// 深拷贝为普通对象：Vue reactive proxy 经 Puppeteer/CDP 序列化会变成空壳 {}，
+// 导致 render.js 提取注入数据时读到无效结构。写入 window.__PRELOADED_DATA__ 前必须去掉 proxy。
+const toPlain = (obj) => {
+  if (obj === null || obj === undefined) return null
+  try { return JSON.parse(JSON.stringify(obj)) } catch (e) { return null }
+}
 
 // 渲染 Mermaid 语法图（流程图/时序图等），将 language-mermaid 代码块替换为 SVG
 const renderMermaid = async () => {
@@ -253,6 +263,7 @@ const submitComment = async () => {
 }
 
 const loadBlog = async () => {
+  loading.value = true
   try {
     // 优先使用预渲染嵌入的数据（避免 API 请求导致的页面闪烁）
     const preloaded = getPreloadedData()
@@ -279,8 +290,13 @@ const loadBlog = async () => {
     blog.value = blogData?.blogId ? blogData : null
     comments.value = data.comments || null
     
-    // 存储数据供预渲染提取（render.js 会注入到 HTML 中）
-    window.__PRELOADED_DATA__ = { blog: blog.value, comments: comments.value }
+    // 仅在数据有效时写回，供 render.js 提取注入；无效时清除，
+    // 防止 {blog:null} 假数据污染注入判断（render.js 的 waitForFunction 会因此一直等不到有效数据）
+    if (blog.value?.blogId) {
+      window.__PRELOADED_DATA__ = { blog: toPlain(blog.value), comments: toPlain(comments.value) }
+    } else {
+      delete window.__PRELOADED_DATA__
+    }
     
     // 博客不存在时跳转到 404 页面
     if (!blog.value || !blog.value.blogId) {
@@ -300,7 +316,11 @@ const loadBlog = async () => {
     setupSeo()
   } catch (e) { 
     console.error(e)
+    // 数据加载失败时清除预渲染数据，防止残留旧数据污染后续渲染
+    delete window.__PRELOADED_DATA__
     router.replace({ name: 'NotFound' })
+  } finally {
+    loading.value = false
   }
 }
 
@@ -372,8 +392,8 @@ watch(() => route.params, () => loadBlog(), { deep: true })
 onMounted(() => {
   if (blog.value) {
     // setup 阶段已从嵌入数据同步初始化：只需补 SEO 元信息，无需再请求 API，避免二次渲染闪烁；
-    // 同时回写数据供 render.js 提取（嵌入数据在 setup 时已被移除）
-    window.__PRELOADED_DATA__ = { blog: blog.value, comments: comments.value }
+    // 同时回写数据供 render.js 提取（嵌入数据在 setup 时已被移除；toPlain 去除 reactive proxy）
+    window.__PRELOADED_DATA__ = { blog: toPlain(blog.value), comments: toPlain(comments.value) }
     setupSeo()
   } else {
     loadBlog()
@@ -532,6 +552,13 @@ onUnmounted(() => {
   text-align: center;
   padding: 80px 20px;
   color: var(--color-text-secondary);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
 }
 
 @media (max-width: 768px) {

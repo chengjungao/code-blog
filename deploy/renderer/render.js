@@ -61,6 +61,50 @@ function urlToFilePath(urlPath) {
 }
 
 /**
+ * 从页面读取预加载数据。
+ * 关键：Vue 写入的 __PRELOADED_DATA__ 可能是 reactive proxy，Puppeteer/CDP 直接序列化
+ * proxy 会得到空壳 {}。因此在页面上下文内先 JSON.stringify 再 parse（触发 proxy get trap
+ * 正常取值），返回普通对象后再交给 CDP 序列化，保证注入数据完整。
+ */
+async function readPreloadedData(page) {
+    return await page.evaluate(() => {
+        const d = window.__PRELOADED_DATA__ || null;
+        if (!d) return null;
+        try { return JSON.parse(JSON.stringify(d)); } catch (e) { return null; }
+    });
+}
+
+/**
+ * 等待页面预加载数据就绪（供水合注入）。
+ * 首次超时后自动重载页面重试一次，应对渲染时后端偶发未就绪 / API 慢导致的注入丢失。
+ * @returns {Promise<object|null>} 有效的 {blog, comments}；两次尝试均失败返回 null
+ */
+async function waitForPreloadedData(page, url) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        let data = await readPreloadedData(page);
+        if (data && data.blog && data.blog.blogId) return data;
+
+        try {
+            await page.waitForFunction(
+                () => window.__PRELOADED_DATA__ && window.__PRELOADED_DATA__.blog && window.__PRELOADED_DATA__.blog.blogId,
+                { timeout: 15000, polling: 500 }
+            );
+            data = await readPreloadedData(page);
+            if (data && data.blog && data.blog.blogId) return data;
+        } catch (e) { /* 本轮超时，进入重试或放弃 */ }
+
+        if (attempt === 1) {
+            console.log(`[重试] ${url} 第 1 次未等到预加载数据，重新加载页面重试...`);
+            await page.reload({ waitUntil: 'networkidle0', timeout: CONFIG.timeout }).catch(() => {});
+            await page.waitForSelector(CONFIG.readySelector, { timeout: 10000 }).catch(() => {});
+            await new Promise(resolve => setTimeout(resolve, CONFIG.extraWait));
+        }
+    }
+    console.log(`[提示] ${url} 两次尝试均未等到预加载数据，页面将无注入数据`);
+    return null;
+}
+
+/**
  * 渲染单个 URL
  */
 async function renderUrl(browser, url) {
@@ -86,6 +130,9 @@ async function renderUrl(browser, url) {
         // 额外等待，确保异步数据加载完成
         await new Promise(resolve => setTimeout(resolve, CONFIG.extraWait));
         
+        // 读取 Vue 写入的预加载数据；未就绪则轮询等待，首次失败自动重载重试（防注入丢失）
+        const preloadedData = await waitForPreloadedData(page, url);
+        
         // 检查是否有 404 标记
         const is404 = await page.evaluate(() => {
             const notFoundEl = document.querySelector('.empty-state, .not-found-page');
@@ -102,7 +149,6 @@ async function renderUrl(browser, url) {
         const html = await page.content();
         
         // 提取 Vue 存储的博客数据，注入到 HTML 中供客户端水合使用（消除闪烁）
-        const preloadedData = await page.evaluate(() => window.__PRELOADED_DATA__ || null);
         let finalHtml = html;
         // 仅在数据有效时注入（防止空对象污染预渲染文件，导致客户端白屏）
         if (preloadedData && preloadedData.blog && preloadedData.blog.blogId) {
