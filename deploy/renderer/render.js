@@ -24,7 +24,7 @@ const CONFIG = {
     // 页面加载超时（毫秒）
     timeout: 30000,
     // 并发渲染数
-    concurrency: 3,
+    concurrency: 1,
     // 浏览器参数
     browserArgs: [
         '--no-sandbox',
