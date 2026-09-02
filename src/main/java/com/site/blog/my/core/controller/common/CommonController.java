@@ -1,7 +1,7 @@
 package com.site.blog.my.core.controller.common;
 
 import cn.hutool.captcha.CaptchaUtil;
-import cn.hutool.captcha.ShearCaptcha;
+import cn.hutool.captcha.LineCaptcha;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 
@@ -18,13 +18,14 @@ public class CommonController {
         httpServletResponse.setDateHeader("Expires", 0);
         httpServletResponse.setContentType("image/png");
 
-        ShearCaptcha shearCaptcha= CaptchaUtil.createShearCaptcha(150, 30, 4, 2);
+        // 线条干扰型验证码：不涉及 copyArea 扭曲，规避 Java 8 libawt AnyIntIsomorphicCopy 自拷贝崩溃（SIGILL）
+        LineCaptcha lineCaptcha = CaptchaUtil.createLineCaptcha(150, 40, 4, 30);
 
         // 验证码存入session
-        httpServletRequest.getSession().setAttribute("verifyCode", shearCaptcha);
+        httpServletRequest.getSession().setAttribute("verifyCode", lineCaptcha);
 
         // 输出图片流
-        shearCaptcha.write(httpServletResponse.getOutputStream());
+        lineCaptcha.write(httpServletResponse.getOutputStream());
     }
 }
 

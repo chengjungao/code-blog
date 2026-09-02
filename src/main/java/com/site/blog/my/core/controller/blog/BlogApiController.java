@@ -1,6 +1,6 @@
 package com.site.blog.my.core.controller.blog;
 
-import cn.hutool.captcha.ShearCaptcha;
+import cn.hutool.captcha.AbstractCaptcha;
 import com.site.blog.my.core.controller.vo.BlogDetailVO;
 import com.site.blog.my.core.entity.BlogComment;
 import com.site.blog.my.core.entity.BlogLink;
@@ -173,8 +173,8 @@ public class BlogApiController {
         if (StringUtils.isEmpty(verifyCode)) {
             return ResultGenerator.genFailResult("验证码不能为空");
         }
-        ShearCaptcha shearCaptcha = (ShearCaptcha) session.getAttribute("verifyCode");
-        if (shearCaptcha == null || !shearCaptcha.verify(verifyCode)) {
+        AbstractCaptcha captcha = (AbstractCaptcha) session.getAttribute("verifyCode");
+        if (captcha == null || !captcha.verify(verifyCode)) {
             return ResultGenerator.genFailResult("验证码错误");
         }
         String ref = request.getHeader("Referer");

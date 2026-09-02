@@ -54,9 +54,10 @@ public class AdminApiController {
         if (StringUtils.isEmpty(userName) || StringUtils.isEmpty(password)) {
             return ResultGenerator.genFailResult("用户名或密码不能为空");
         }
-        cn.hutool.captcha.ShearCaptcha shearCaptcha =
-                (cn.hutool.captcha.ShearCaptcha) session.getAttribute("verifyCode");
-        if (shearCaptcha == null || !shearCaptcha.verify(verifyCode)) {
+        // 统一按 AbstractCaptcha 取出（生成端已从 ShearCaptcha 切换为 LineCaptcha）
+        cn.hutool.captcha.AbstractCaptcha captcha =
+                (cn.hutool.captcha.AbstractCaptcha) session.getAttribute("verifyCode");
+        if (captcha == null || !captcha.verify(verifyCode)) {
             return ResultGenerator.genFailResult("验证码错误");
         }
         AdminUser adminUser = adminUserService.login(userName, password);
