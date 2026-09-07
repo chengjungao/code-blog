@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.site.blog.my.core.dao.AutoReplyMapper">
+  <resultMap id="BaseResultMap" type="com.site.blog.my.core.entity.AutoReply">
+    <id column="id" jdbcType="BIGINT" property="id" />
+    <result column="keyword" jdbcType="VARCHAR" property="keyword" />
+    <result column="reply" jdbcType="VARCHAR" property="reply" />
+    <result column="status" jdbcType="TINYINT" property="status" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+
+  <sql id="Base_Column_List">
+    id, keyword, reply, status, create_time, update_time
+  </sql>
+
+  <insert id="insertSelective" parameterType="com.site.blog.my.core.entity.AutoReply">
+    insert into tb_wechat_auto_reply
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      <if test="keyword != null">keyword,</if>
+      <if test="reply != null">reply,</if>
+      <if test="status != null">status,</if>
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+      <if test="keyword != null">#{keyword,jdbcType=VARCHAR},</if>
+      <if test="reply != null">#{reply,jdbcType=VARCHAR},</if>
+      <if test="status != null">#{status,jdbcType=TINYINT},</if>
+    </trim>
+  </insert>
+
+  <update id="updateByPrimaryKeySelective" parameterType="com.site.blog.my.core.entity.AutoReply">
+    update tb_wechat_auto_reply
+    <set>
+      <if test="keyword != null">keyword = #{keyword,jdbcType=VARCHAR},</if>
+      <if test="reply != null">reply = #{reply,jdbcType=VARCHAR},</if>
+      <if test="status != null">status = #{status,jdbcType=TINYINT},</if>
+      update_time = CURRENT_TIMESTAMP,
+    </set>
+    where id = #{id,jdbcType=BIGINT}
+  </update>
+
+  <delete id="deleteBatch">
+    delete from tb_wechat_auto_reply
+    where id in
+    <foreach collection="ids" item="id" open="(" separator="," close=")">
+      #{id}
+    </foreach>
+  </delete>
+
+  <select id="selectByPrimaryKey" parameterType="Long" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from tb_wechat_auto_reply
+    where id = #{id,jdbcType=BIGINT}
+  </select>
+
+  <select id="selectByKeyword" parameterType="String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from tb_wechat_auto_reply
+    where keyword = #{keyword,jdbcType=VARCHAR}
+    limit 1
+  </select>
+
+  <select id="selectAllList" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from tb_wechat_auto_reply
+    order by id asc
+  </select>
+
+  <select id="selectEnabledList" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List"/>
+    from tb_wechat_auto_reply
+    where status = 1
+    order by id asc
+  </select>
+</mapper>

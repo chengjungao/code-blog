@@ -205,3 +205,17 @@ CREATE TABLE IF NOT EXISTS `tb_page_stat` (
   UNIQUE KEY `uk_date_page` (`stat_date`, `page_path`),
   KEY `idx_stat_date` (`stat_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ----------------------------
+-- 微信自动回复键值对表（关键词 -> 固定回复，命中优先于 AI 回复）
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS `tb_wechat_auto_reply` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `keyword` VARCHAR(100) NOT NULL COMMENT '触发关键词',
+  `reply` VARCHAR(2048) NOT NULL COMMENT '固定回复内容',
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '1启用 0停用',
+  `create_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_keyword` (`keyword`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

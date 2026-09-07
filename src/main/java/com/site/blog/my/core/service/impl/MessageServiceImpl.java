@@ -2,6 +2,7 @@ package com.site.blog.my.core.service.impl;
 
 import com.site.blog.my.core.dao.MessageMapper;
 import com.site.blog.my.core.entity.Message;
+import com.site.blog.my.core.service.AutoReplyService;
 import com.site.blog.my.core.service.ChatService;
 import com.site.blog.my.core.service.MessageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,9 @@ public class MessageServiceImpl implements MessageService {
 
     @Autowired
     private ChatService chatService;
+
+    @Autowired
+    private AutoReplyService autoReplyService;
 
     @Override
     public Message handleMessage(Message message) {
@@ -46,7 +50,13 @@ public class MessageServiceImpl implements MessageService {
             // 插入新消息
             messageMapper.insert(message);
             if (message.getMsgType().equals("text")){
-                replyMessage.setContent(chatService.chat(message.getContent(), message.getFromUser(), historyMessages));
+                // 固定回复优先：命中自动回复规则则不再调用 AI
+                String fixedReply = autoReplyService.matchReply(message.getContent());
+                if (fixedReply != null) {
+                    replyMessage.setContent(fixedReply);
+                } else {
+                    replyMessage.setContent(chatService.chat(message.getContent(), message.getFromUser(), historyMessages));
+                }
             }else if (message.getMsgType().equals("image")){
                 replyMessage.setContent(chatService.vision(message.getContent()));
             }

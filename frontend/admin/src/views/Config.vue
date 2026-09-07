@@ -149,13 +149,71 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 微信自动回复 -->
+    <el-row :gutter="20" style="margin-top: 20px;">
+      <el-col :span="24">
+        <el-card>
+          <template #header>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600;">微信自动回复</span>
+              <el-button type="primary" size="small" @click="openAddReply">新增规则</el-button>
+            </div>
+          </template>
+          <el-alert
+            type="info"
+            :closable="false"
+            style="margin-bottom: 12px;"
+            title="微信文本消息按关键词命中固定回复（先精确匹配整句，再逐条包含匹配，先配置的优先）；未命中才走 AI 回复。"
+          />
+          <el-table :data="replyRules" v-loading="replyLoading" stripe>
+            <el-table-column prop="keyword" label="触发关键词" width="200" />
+            <el-table-column prop="reply" label="固定回复内容" show-overflow-tooltip />
+            <el-table-column label="状态" width="90" align="center">
+              <template #default="{ row }">
+                <el-switch
+                  :model-value="row.status === 1"
+                  @change="val => toggleReplyStatus(row, val)"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column prop="updateTime" label="更新时间" width="170" />
+            <el-table-column label="操作" width="150" align="center">
+              <template #default="{ row }">
+                <el-button size="small" link type="primary" @click="openEditReply(row)">编辑</el-button>
+                <el-button size="small" link type="danger" @click="removeReply(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 自动回复规则编辑弹窗 -->
+    <el-dialog v-model="replyDialogVisible" :title="replyDialogTitle" width="560px">
+      <el-form ref="replyFormRef" :model="replyForm" :rules="replyFormRules" label-width="100px">
+        <el-form-item label="触发关键词" prop="keyword">
+          <el-input v-model="replyForm.keyword" placeholder="用户消息包含即命中，如：你好" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item label="回复内容" prop="reply">
+          <el-input v-model="replyForm.reply" type="textarea" :rows="4" placeholder="命中的固定回复内容" maxlength="2048" show-word-limit />
+        </el-form-item>
+        <el-form-item label="启用">
+          <el-switch v-model="replyForm.status" :active-value="1" :inactive-value="0" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="replyDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitReply">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getConfigList, saveWebsiteConfig, saveUserInfoConfig, saveFooterConfig, uploadFile, renderAllPages, getRenderStatus } from '../api/admin'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getConfigList, saveWebsiteConfig, saveUserInfoConfig, saveFooterConfig, uploadFile, renderAllPages, getRenderStatus, getAutoReplyList, saveAutoReply, updateAutoReply, deleteAutoReply } from '../api/admin'
 
 const loading = ref(false)
 const savingWebsite = ref(false)
@@ -270,6 +328,7 @@ const handleAvatarUpload = async (file) => {
 onMounted(() => {
   fetchData()
   checkRenderStatus()
+  fetchReplyRules()
 })
 
 const checkRenderStatus = async () => {
@@ -295,6 +354,104 @@ const handleRenderAll = async () => {
   } finally {
     rendering.value = false
   }
+}
+
+// ===== 微信自动回复 =====
+const replyRules = ref([])
+const replyLoading = ref(false)
+const replyDialogVisible = ref(false)
+const replyDialogTitle = ref('')
+const replyFormRef = ref()
+
+const replyForm = reactive({
+  id: null,
+  keyword: '',
+  reply: '',
+  status: 1
+})
+
+const replyFormRules = {
+  keyword: [{ required: true, message: '请输入触发关键词', trigger: 'blur' }],
+  reply: [{ required: true, message: '请输入固定回复内容', trigger: 'blur' }]
+}
+
+const fetchReplyRules = async () => {
+  replyLoading.value = true
+  try {
+    const res = await getAutoReplyList()
+    replyRules.value = res.data || []
+  } catch (e) {
+    console.error(e)
+  } finally {
+    replyLoading.value = false
+  }
+}
+
+const resetReplyForm = () => {
+  replyForm.id = null
+  replyForm.keyword = ''
+  replyForm.reply = ''
+  replyForm.status = 1
+}
+
+const openAddReply = () => {
+  resetReplyForm()
+  replyDialogTitle.value = '新增自动回复规则'
+  replyDialogVisible.value = true
+}
+
+const openEditReply = (row) => {
+  replyForm.id = row.id
+  replyForm.keyword = row.keyword
+  replyForm.reply = row.reply
+  replyForm.status = row.status === 1 ? 1 : 0
+  replyDialogTitle.value = '编辑自动回复规则'
+  replyDialogVisible.value = true
+}
+
+const submitReply = async () => {
+  try {
+    await replyFormRef.value.validate()
+  } catch (e) {
+    return
+  }
+  try {
+    if (replyForm.id) {
+      await updateAutoReply({ ...replyForm })
+    } else {
+      await saveAutoReply({ keyword: replyForm.keyword, reply: replyForm.reply })
+    }
+    ElMessage.success('保存成功')
+    replyDialogVisible.value = false
+    fetchReplyRules()
+  } catch (e) { /* crud 拦截器已提示 */ }
+}
+
+const toggleReplyStatus = async (row, val) => {
+  try {
+    await updateAutoReply({ id: row.id, keyword: row.keyword, reply: row.reply, status: val ? 1 : 0 })
+    ElMessage.success(val ? '已启用' : '已停用')
+    fetchReplyRules()
+  } catch (e) {
+    fetchReplyRules()
+  }
+}
+
+const removeReply = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定删除规则「${row.keyword}」？`, '提示', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+  } catch (e) {
+    return
+  }
+  try {
+    await deleteAutoReply([row.id])
+    ElMessage.success('删除成功')
+    fetchReplyRules()
+  } catch (e) { /* crud 拦截器已提示 */ }
 }
 </script>
 

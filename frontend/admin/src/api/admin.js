@@ -273,3 +273,20 @@ export function getRenderStatus() {
 export function getRenderUrls() {
   return crud({ url: '/render/urls', method: 'get' })
 }
+
+// ===== 微信自动回复键值对管理 =====
+export function getAutoReplyList() {
+  return crud({ url: '/autoReplies/list', method: 'get' })
+}
+
+export function saveAutoReply(data) {
+  return crud({ url: '/autoReplies/save', method: 'post', params: data })
+}
+
+export function updateAutoReply(data) {
+  return crud({ url: '/autoReplies/update', method: 'post', params: data })
+}
+
+export function deleteAutoReply(ids) {
+  return crud({ url: '/autoReplies/delete', method: 'post', data: ids, headers: { 'Content-Type': 'application/json' } })
+}
