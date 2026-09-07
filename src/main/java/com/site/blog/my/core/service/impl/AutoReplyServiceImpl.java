@@ -8,6 +8,7 @@ import org.springframework.util.StringUtils;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class AutoReplyServiceImpl implements AutoReplyService {
@@ -79,14 +80,20 @@ public class AutoReplyServiceImpl implements AutoReplyService {
             return null;
         }
         String text = content.trim();
-        // 1. 整句精确命中
-        AutoReply exact = autoReplyMapper.selectByKeyword(text);
-        if (exact != null && exact.getStatus() != null && exact.getStatus() == 1) {
-            return exact.getReply();
+        String textLower = text.toLowerCase(Locale.ROOT);
+        // 规则量小，一次加载启用列表本地匹配；比较统一转小写（忽略大小写）
+        List<AutoReply> enabledList = autoReplyMapper.selectEnabledList();
+        // 1. 整句精确命中（忽略大小写）
+        for (AutoReply rule : enabledList) {
+            String keyword = rule.getKeyword();
+            if (keyword != null && textLower.equals(keyword.toLowerCase(Locale.ROOT))) {
+                return rule.getReply();
+            }
         }
-        // 2. 包含命中（规则量小全量遍历，先配置优先）
-        for (AutoReply rule : autoReplyMapper.selectEnabledList()) {
-            if (text.contains(rule.getKeyword())) {
+        // 2. 包含命中（忽略大小写，先配置优先）
+        for (AutoReply rule : enabledList) {
+            String keyword = rule.getKeyword();
+            if (keyword != null && textLower.contains(keyword.toLowerCase(Locale.ROOT))) {
                 return rule.getReply();
             }
         }
