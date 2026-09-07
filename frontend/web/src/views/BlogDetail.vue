@@ -398,6 +398,9 @@ onMounted(() => {
   } else {
     loadBlog()
   }
+  // 水合路径（预渲染文件内嵌数据）下 blog 初始即有值，renderedContent 首次计算后不再变化，
+  // 上方 watch 永不触发 → mermaid 图不渲染、以代码块展示。挂载完成后必须主动渲染一次。
+  renderMermaid()
   refreshCaptcha()
 })
 

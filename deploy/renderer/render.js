@@ -105,6 +105,30 @@ async function waitForPreloadedData(page, url) {
 }
 
 /**
+ * 等待页面 mermaid 图渲染完成。
+ * Vue 渲染 mermaid 是异步的（mermaid.render 逐块替换 SVG），固定 extraWait 在多图文章下
+ * 可能截断，导致快照里 mermaid 仍是代码块。此处轮询等待所有 language-mermaid 代码块
+ * 被替换为空。渲染失败会残留代码块，超时后不阻塞，交由日志提示。
+ * @returns {Promise<boolean>} 是否在超时前完成
+ */
+async function waitForMermaidReady(page, url) {
+    const hasMermaid = await page.evaluate(() =>
+        document.querySelectorAll('.markdown-body pre code.language-mermaid').length > 0
+    );
+    if (!hasMermaid) return true;
+    try {
+        await page.waitForFunction(
+            () => document.querySelectorAll('.markdown-body pre code.language-mermaid').length === 0,
+            { timeout: 30000, polling: 500 }
+        );
+        return true;
+    } catch (e) {
+        console.log(`[提示] ${url} 等待 mermaid 渲染超时，快照可能含未渲染代码块`);
+        return false;
+    }
+}
+
+/**
  * 渲染单个 URL
  */
 async function renderUrl(browser, url) {
@@ -116,8 +140,18 @@ async function renderUrl(browser, url) {
         // 设置视口
         await page.setViewport({ width: 1280, height: 800 });
         
+        // 关键：URL 带 __prerender=1 查询参数标记预渲染请求。nginx 识别后跳过 pages/ 旧静态
+        // 文件、直接返回 SPA 壳，让 Vue 从 API 拉取最新数据——否则渲染器每次拿到的都是
+        // 上一次的预渲染文件（内嵌旧数据），旧数据水合后不再请求 API，
+        // 造成"旧文件→旧数据→写回旧文件"的自固化，定时渲染永远不更新内容。
+        // 用查询参数而非请求头：Puppeteer 的 setExtraHTTPHeaders 会附加到页面所有子资源
+        // 请求（JS/CSS/图片），若 nginx 按请求头放行，静态资源也会被替换成 SPA 壳 HTML，
+        // 页面直接崩溃。查询参数只存在于主文档 URL，子资源请求天然不受影响。
+        const sep = url.includes('?') ? '&' : '?';
+        const renderUrl = url + sep + '__prerender=1';
+        
         // 访问页面
-        await page.goto(url, {
+        await page.goto(renderUrl, {
             waitUntil: 'networkidle0',
             timeout: CONFIG.timeout
         });
@@ -132,6 +166,9 @@ async function renderUrl(browser, url) {
         
         // 读取 Vue 写入的预加载数据；未就绪则轮询等待，首次失败自动重载重试（防注入丢失）
         const preloadedData = await waitForPreloadedData(page, url);
+        
+        // 等待 mermaid 图渲染完成（多图文章防截断）
+        await waitForMermaidReady(page, url);
         
         // 检查是否有 404 标记
         const is404 = await page.evaluate(() => {
