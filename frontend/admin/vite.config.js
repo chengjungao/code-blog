@@ -39,6 +39,10 @@ export default defineConfig({
         target: 'http://localhost:28083',
         changeOrigin: true,
       },
+      '/admin/autoReplies': {
+        target: 'http://localhost:28083',
+        changeOrigin: true,
+      },
       '/admin/upload': {
         target: 'http://localhost:28083',
         changeOrigin: true,
