@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.site.blog.my.core.service.HealthService;
+import com.site.blog.my.core.util.LlmThinkingAdapter;
 import com.site.blog.my.core.util.PromptUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,9 @@ public class HealthServiceImpl implements HealthService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private LlmThinkingAdapter thinkingAdapter;
 
     @Value("${vision.server.url:}")
     private String visionServerUrl;
@@ -91,10 +95,7 @@ public class HealthServiceImpl implements HealthService {
 
         JSONObject body = new JSONObject();
         body.put("model", visionModel);
-        // GLM-5.3-Flash 强制思考模式，不支持 enable_thinking:false，改用 thinking:{level:"low"} 控制
-        JSONObject thinking = new JSONObject();
-        thinking.put("level", "low");
-        body.put("thinking", thinking);
+        thinkingAdapter.applyVision(body);
         body.put("temperature", 0);
         body.put("max_tokens", 2048);
 
@@ -117,7 +118,7 @@ public class HealthServiceImpl implements HealthService {
         JSONObject body = new JSONObject();
         body.put("model", chatModel);
         body.put("temperature", 0);
-        body.put("enable_thinking", false);
+        thinkingAdapter.applyText(body);
 
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", systemPrompt));

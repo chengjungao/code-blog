@@ -7,6 +7,7 @@ import com.site.blog.my.core.entity.BlogChunk;
 import com.site.blog.my.core.entity.Message;
 import com.site.blog.my.core.service.ChatService;
 import com.site.blog.my.core.solr.BlogSolrServer;
+import com.site.blog.my.core.util.LlmThinkingAdapter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -27,6 +28,9 @@ public class ChatServiceImpl implements ChatService {
 
     @Autowired
     private BlogSolrServer blogSolrServer;
+
+    @Autowired
+    private LlmThinkingAdapter thinkingAdapter;
 
     @Value("${chat.server.url:}")
     private String url;
@@ -69,7 +73,7 @@ public class ChatServiceImpl implements ChatService {
         requestBody.put("model", chatModel);
         requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 256);
-        requestBody.put("enable_thinking",false);
+        thinkingAdapter.applyText(requestBody);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", "你是代码江湖公众号的智能助手，可以为用户提供准确和专业的回答,使用简洁的文字200字内,纯文本格式输出"));
 
@@ -116,10 +120,7 @@ public class ChatServiceImpl implements ChatService {
         requestBody.put("model", visionModel);
         requestBody.put("temperature", 0.1);
         requestBody.put("max_tokens", 2048);
-        // GLM-5.3-Flash 强制思考模式，不支持 enable_thinking:false，改用 thinking:{level:"low"} 控制
-        JSONObject thinking = new JSONObject();
-        thinking.put("level", "low");
-        requestBody.put("thinking", thinking);
+        thinkingAdapter.applyVision(requestBody);
         JSONArray messages = new JSONArray();
         messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", "你是专业的营养师，能帮助分析配料表成分"));
         JSONArray imageContent = new JSONArray();
@@ -189,7 +190,7 @@ public class ChatServiceImpl implements ChatService {
             requestBody.put("model", chatModel);
             requestBody.put("temperature", 0.6);
             requestBody.put("max_tokens", 512);
-            requestBody.put("enable_thinking", false);
+            thinkingAdapter.applyText(requestBody);
 
             JSONArray messages = new JSONArray();
             messages.add(new JSONObject().fluentPut("role", "system").fluentPut("content", enhancedPrompt));
@@ -244,7 +245,7 @@ public class ChatServiceImpl implements ChatService {
             requestBody.put("model", chatModel);
             requestBody.put("temperature", 0.1);
             requestBody.put("max_tokens", 64);
-            requestBody.put("enable_thinking", false);
+            thinkingAdapter.applyText(requestBody);
             requestBody.put("messages", messages);
 
             HttpHeaders headers = new HttpHeaders();
