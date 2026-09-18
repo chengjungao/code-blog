@@ -84,12 +84,16 @@ COPY --from=build-renderer /app/node_modules /opt/app/renderer/node_modules
 COPY deploy/nginx.conf /etc/nginx/http.d/default.conf
 COPY deploy/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Copy prerender invalidation script (runs before nginx starts)
+COPY deploy/invalidate-stale-pages.sh /opt/invalidate-stale-pages.sh
+
 # Fix line endings for config files (CRLF + BOM)
-RUN sed -i '1s/^\xEF\xBB\xBF//' /etc/nginx/http.d/default.conf /etc/supervisor/conf.d/supervisord.conf \
- && sed -i 's/\r$//' /etc/nginx/http.d/default.conf /etc/supervisor/conf.d/supervisord.conf
+RUN sed -i '1s/^\xEF\xBB\xBF//' /etc/nginx/http.d/default.conf /etc/supervisor/conf.d/supervisord.conf /opt/invalidate-stale-pages.sh \
+ && sed -i 's/\r$//' /etc/nginx/http.d/default.conf /etc/supervisor/conf.d/supervisord.conf /opt/invalidate-stale-pages.sh \
+ && chmod +x /opt/invalidate-stale-pages.sh
 
 # Write entrypoint.sh directly inside container (avoids BOM/CRLF from Windows COPY)
-RUN printf '#!/bin/sh\nset -e\necho "========================================="\necho "  Code-Blog Starting..."\necho "========================================="\nmkdir -p /var/blog/data /var/blog/solr /usr/share/nginx/html/blog/pages\n# Initialize Solr config on first start (volume is empty)\nif [ ! -f /var/blog/solr/solr.xml ]; then\n  echo "Initializing Solr config from template..."\n  cp -r /opt/app/solr-template/* /var/blog/solr/\nfi\n# Set Puppeteer environment variables\nexport PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true\nexport PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser\nexec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf\n' > /opt/entrypoint.sh \
+RUN printf '#!/bin/sh\nset -e\necho "========================================="\necho "  Code-Blog Starting..."\necho "========================================="\nmkdir -p /var/blog/data /var/blog/solr /usr/share/nginx/html/blog/pages\n# Drop prerendered pages that reference removed build assets (avoid broken styles)\nsh /opt/invalidate-stale-pages.sh || true\n# Initialize Solr config on first start (volume is empty)\nif [ ! -f /var/blog/solr/solr.xml ]; then\n  echo "Initializing Solr config from template..."\n  cp -r /opt/app/solr-template/* /var/blog/solr/\nfi\n# Set Puppeteer environment variables\nexport PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true\nexport PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser\nexec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf\n' > /opt/entrypoint.sh \
  && chmod +x /opt/entrypoint.sh
 
 # Puppeteer environment variables

@@ -66,6 +66,14 @@ public class PathValidationController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        // 剥离查询串：Nginx 传过来的是 $request_uri（含 ?a=b），而下面所有规则
+        // 只针对 pathname。不剥离的话，/category/Java/1?tag=solr 这类筛选地址、
+        // 以及带 utm_source 等跟踪参数的分享链接都会匹配失败 → 403 → Nginx 转 404。
+        int queryIndex = path.indexOf('?');
+        if (queryIndex >= 0) {
+            path = path.substring(0, queryIndex);
+        }
+
         // 移除末尾斜杠
         if (path.length() > 1 && path.endsWith("/")) {
             path = path.substring(0, path.length() - 1);
