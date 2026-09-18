@@ -70,4 +70,20 @@ public class TagServiceImpl implements TagService {
     public List<BlogTagCount> getBlogTagCountForIndex() {
         return blogTagMapper.getTagCount();
     }
+
+    @Override
+    public List<BlogTagCount> getBlogTagCountForScope(String categoryName, List<String> excludeCategoryNames) {
+        if (categoryName == null && CollectionUtils.isEmpty(excludeCategoryNames)) {
+            return blogTagMapper.getTagCount();
+        }
+        return blogTagMapper.getTagCountByScope(categoryName, excludeCategoryNames);
+    }
+
+    @Override
+    public String getTopCategoryNameByTag(String tagName) {
+        if (tagName == null || tagName.trim().isEmpty()) {
+            return null;
+        }
+        return blogTagMapper.getTopCategoryNameByTag(tagName.trim());
+    }
 }

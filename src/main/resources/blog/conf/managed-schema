@@ -53,7 +53,14 @@
     <field name="isDeleted" type="pint" indexed="true" stored="true" multiValued="false" />
     <field name="createTime" type="pdate" indexed="true" stored="true" multiValued="false" />
     <field name="updateTime" type="pdate" indexed="true" stored="true" multiValued="false" />
-    <field name="blogContent" type="string" indexed="true" stored="true" multiValued="false" />
+    <!-- blogContent 只存不索引（2026-09-18 修）：
+         起因：整篇正文按 StrField 建倒排索引 = 正文变成「一个词」，
+               一旦超过 Lucene 的单词上限 IndexWriter.MAX_TERM_LENGTH=32766 字节就抛
+               BytesRefHash$MaxBytesLengthExceededException（实测正文 35848 字节时报错）。
+         docValues 走的是同一套 BytesRefHash，限制同样是 32766，所以两个都得关。
+         正文的全文检索由下面的 copyField → default_search（text 类型，HanLP 分词）承担；
+         copyField 取的是 SolrInputDocument 里的值，与源字段是否 indexed 无关，不受影响。 -->
+    <field name="blogContent" type="string" indexed="false" stored="true" docValues="false" multiValued="false" />
 
     <!-- 文档类型：blog=文章, chunk=分块（用于区分文章和分块文档） -->
     <field name="docType" type="string" indexed="true" stored="true" multiValued="false" />

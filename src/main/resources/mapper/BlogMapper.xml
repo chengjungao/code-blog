@@ -75,6 +75,10 @@
         <if test="blogCategoryId!=null">
             AND blog_category_id = #{blogCategoryId}
         </if>
+        <!-- 类目内的标签收窄：与 blogCategoryId 同时生效，构成「类目 ∩ 标签」 -->
+        <if test="tagId!=null">
+            AND blog_id IN (SELECT blog_id FROM tb_blog_tag_relation WHERE tag_id = #{tagId})
+        </if>
         <if test="excludeCategoryNames != null and excludeCategoryNames.size() > 0">
             AND blog_category_name NOT IN
             <foreach collection="excludeCategoryNames" item="name" open="(" separator="," close=")">
@@ -98,6 +102,10 @@
         </if>
         <if test="blogCategoryId!=null">
             AND blog_category_id = #{blogCategoryId}
+        </if>
+        <!-- 与 findBlogList 保持同一过滤口径，否则联合筛选的分页总数会偏大 -->
+        <if test="tagId!=null">
+            AND blog_id IN (SELECT blog_id FROM tb_blog_tag_relation WHERE tag_id = #{tagId})
         </if>
         <if test="excludeCategoryNames != null and excludeCategoryNames.size() > 0">
             AND blog_category_name NOT IN
@@ -384,5 +392,21 @@
         and (blog_title like CONCAT('%',#{keyword},'%' )
              or blog_category_name like CONCAT('%',#{keyword},'%' )
              or blog_tags like CONCAT('%',#{keyword},'%' ))
+    </select>
+
+    <!-- 列表页类目筛选条：按冗余的分类名分组计数，排除生活类分类 -->
+    <select id="getCategoryCounts" resultType="com.site.blog.my.core.controller.vo.CategoryCountVO">
+        select blog_category_name as categoryName, count(*) as categoryCount
+        from tb_blog
+        where is_deleted = 0 and blog_status = 1
+        and blog_category_name is not null and blog_category_name &lt;&gt; ''
+        <if test="excludeCategoryNames != null and excludeCategoryNames.size() > 0">
+            AND blog_category_name NOT IN
+            <foreach collection="excludeCategoryNames" item="name" open="(" separator="," close=")">
+                #{name}
+            </foreach>
+        </if>
+        group by blog_category_name
+        order by categoryCount desc, categoryName asc
     </select>
 </mapper>

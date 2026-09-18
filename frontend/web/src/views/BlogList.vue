@@ -1,28 +1,59 @@
 <template>
   <div class="blog-list-page">
     <div class="list-header">
-      <h2>{{ listTitle }} <span v-if="keyword" class="keyword">: {{ keyword }}</span></h2>
+      <h2>
+        {{ listTitle }}
+        <span v-if="keyword" class="keyword">: {{ keyword }}</span>
+        <span v-if="headingTag" class="keyword">#{{ headingTag }}</span>
+      </h2>
     </div>
 
-    <div class="blog-grid" v-if="blogs.length">
-      <article class="blog-card" v-for="blog in blogs" :key="blog.blogId">
-        <router-link :to="blogLink(blog)" class="card-cover">
-          <img v-if="blog.blogCoverImage" :src="blog.blogCoverImage" :alt="blog.blogTitle" />
-          <div v-else class="cover-placeholder">{{ getInitial(blog.blogTitle) }}</div>
-        </router-link>
-        <div class="card-body">
-          <div class="card-category">
-            <router-link :to="'/category/' + blog.blogCategoryName + '/1'" class="category-link">
-              <span>{{ blog.blogCategoryName }}</span>
-            </router-link>
+    <!-- 主列整体包一层：FilterBar 不能直接作为两列网格的子项，否则会被塞进侧栏列，网格列数错乱 -->
+    <div class="list-main">
+      <FilterBar
+        :categories="categories"
+        :tags="hotTags"
+        :active-category="activeCategory"
+        :active-tag="activeTag"
+        all-link="/notes"
+      />
+
+      <div class="blog-grid" v-if="blogs.length">
+        <article class="blog-card" v-for="blog in blogs" :key="blog.blogId">
+          <router-link :to="blogLink(blog)" class="card-cover">
+            <img v-if="blog.blogCoverImage" :src="blog.blogCoverImage" :alt="blog.blogTitle" />
+            <div v-else class="cover-placeholder">{{ getInitial(blog.blogTitle) }}</div>
+          </router-link>
+          <div class="card-body">
+            <div class="card-category">
+              <router-link :to="'/category/' + blog.blogCategoryName + '/1'" class="category-link">
+                <span>{{ blog.blogCategoryName }}</span>
+              </router-link>
+            </div>
+            <h3 class="card-title">
+              <router-link :to="blogLink(blog)">{{ blog.blogTitle }}</router-link>
+            </h3>
           </div>
-          <h3 class="card-title">
-            <router-link :to="blogLink(blog)">{{ blog.blogTitle }}</router-link>
-          </h3>
-        </div>
-      </article>
+        </article>
+      </div>
+      <div v-else class="empty-state">暂无相关笔记</div>
+
+      <!-- 分页 -->
+      <ul class="pagination" v-if="totalPage > 1">
+        <li :class="{ disabled: currPage <= 1 }">
+          <a v-if="currPage > 1" href="#" @click.prevent="goPage(currPage - 1)">«</a>
+          <span v-else>«</span>
+        </li>
+        <li v-for="p in pageNumbers" :key="p" :class="{ active: p === currPage }">
+          <a v-if="p !== currPage" href="#" @click.prevent="goPage(p)">{{ p }}</a>
+          <span v-else>{{ p }}</span>
+        </li>
+        <li :class="{ disabled: currPage >= totalPage }">
+          <a v-if="currPage < totalPage" href="#" @click.prevent="goPage(currPage + 1)">»</a>
+          <span v-else>»</span>
+        </li>
+      </ul>
     </div>
-    <div v-else class="empty-state">暂无相关笔记</div>
 
     <!-- 侧边栏 -->
     <aside class="list-sidebar">
@@ -42,31 +73,7 @@
           </li>
         </ul>
       </div>
-      <div class="sidebar-section">
-        <h4>标签</h4>
-        <div class="tag-cloud">
-          <router-link v-for="t in hotTags" :key="t.tagName" :to="'/tag/' + t.tagName + '/1'" class="tag-item">
-            {{ t.tagName }}({{ t.tagCount }})
-          </router-link>
-        </div>
-      </div>
     </aside>
-
-    <!-- 分页 -->
-    <ul class="pagination" v-if="totalPage > 1">
-      <li :class="{ disabled: currPage <= 1 }">
-        <a v-if="currPage > 1" href="#" @click.prevent="goPage(currPage - 1)">«</a>
-        <span v-else>«</span>
-      </li>
-      <li v-for="p in pageNumbers" :key="p" :class="{ active: p === currPage }">
-        <a v-if="p !== currPage" href="#" @click.prevent="goPage(p)">{{ p }}</a>
-        <span v-else>{{ p }}</span>
-      </li>
-      <li :class="{ disabled: currPage >= totalPage }">
-        <a v-if="currPage < totalPage" href="#" @click.prevent="goPage(currPage + 1)">»</a>
-        <span v-else>»</span>
-      </li>
-    </ul>
   </div>
 </template>
 
@@ -75,6 +82,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchCategoryBlogs, fetchTagBlogs, fetchSearchBlogs, blogLink } from '../api/blog'
 import { setPageMeta, setJsonLd, removeJsonLd } from '../utils/seo'
+import FilterBar from '../components/FilterBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -83,9 +91,23 @@ const blogs = ref([])
 const hotBlogs = ref([])
 const newBlogs = ref([])
 const hotTags = ref([])
+const categories = ref([])
 const currPage = ref(1)
 const totalPage = ref(1)
 const keyword = ref('')
+
+// 当前选中的筛选项（用于 FilterBar 高亮）
+// 类目优先取后端回传：标签页会反查出该标签归属的类目，靠路由参数推不出来
+const serverActiveCategory = ref('')
+const activeCategory = computed(() =>
+  serverActiveCategory.value || (route.name === 'Category' ? route.params.name || '' : '')
+)
+// 标签有两个来源：标签页走路径参数，类目页内的收窄走 ?tag= 查询参数（类目 ∩ 标签）
+const activeTag = computed(() =>
+  route.name === 'Tag' ? route.params.name || '' : route.query.tag || ''
+)
+// 标题里额外的标签后缀（标签页本身就以标签为标题，不重复）
+const headingTag = computed(() => (route.name === 'Category' ? activeTag.value : ''))
 
 const listTitle = computed(() => {
   if (route.name === 'Category') return '分类笔记'
@@ -107,7 +129,9 @@ const pageNumbers = computed(() => {
 const goPage = (p) => {
   const name = route.params.name || route.params.keyword
   const type = route.name === 'Category' ? 'category' : route.name === 'Tag' ? 'tag' : 'search'
-  router.push(`/${type}/${name}/${p}`)
+  // 翻页要带上类目内的标签收窄条件，否则翻到第 2 页标签就丢了
+  const query = route.name === 'Category' && activeTag.value ? { tag: activeTag.value } : undefined
+  router.push({ path: `/${type}/${name}/${p}`, query })
 }
 
 const loadData = async () => {
@@ -115,10 +139,12 @@ const loadData = async () => {
   const page = parseInt(route.params.page) || 1
   currPage.value = page
   keyword.value = name
+  // 切路由时先清掉，避免上一页的类目高亮残留（类目页有路由参数兜底，不会闪）
+  serverActiveCategory.value = ''
   
   const pageUrl = window.location.origin + window.location.pathname
   setPageMeta({
-    title: `${listTitle.value}${name ? '：' + name : ''}`,
+    title: `${listTitle.value}${name ? '：' + name : ''}${headingTag.value ? ' #' + headingTag.value : ''}`,
     description: `程军高关于「${name || '技术笔记'}」的笔记列表。`,
     url: pageUrl
   })
@@ -135,7 +161,8 @@ const loadData = async () => {
   
   try {
     let res
-    if (route.name === 'Category') res = await fetchCategoryBlogs(name, page)
+    // 类目页把 ?tag= 一起交给后端，两个条件在同一条 SQL 里生效
+    if (route.name === 'Category') res = await fetchCategoryBlogs(name, page, route.query.tag || '')
     else if (route.name === 'Tag') res = await fetchTagBlogs(name, page)
     else res = await fetchSearchBlogs(name, page)
     const d = res.data || {}
@@ -145,11 +172,17 @@ const loadData = async () => {
     hotBlogs.value = d.hotBlogs || []
     newBlogs.value = d.newBlogs || []
     hotTags.value = d.hotTags || []
+    categories.value = d.categoryFilters || []
+    serverActiveCategory.value = d.activeCategory || ''
   } catch (e) { console.error(e) }
 }
 
-watch(() => route.params.name, () => loadData())
-watch(() => route.params.page, () => loadData())
+// 类目名 / 页码 / 类目内的标签（?tag=）任一变化都要重新取数。
+// 合成一个 watcher 而不是拆三个：切换类目时 name 和 tag 会同时变，拆开就会重复请求两次。
+watch(
+  () => [route.name, route.params.name, route.params.keyword, route.params.page, route.query.tag].join('|'),
+  () => loadData()
+)
 onMounted(() => loadData())
 onUnmounted(() => removeJsonLd('BreadcrumbList'))
 </script>
@@ -159,6 +192,7 @@ onUnmounted(() => removeJsonLd('BreadcrumbList'))
   display: grid;
   grid-template-columns: 1fr 280px;
   gap: 24px;
+  align-items: start;
 }
 .list-header {
   grid-column: 1 / -1;
@@ -170,9 +204,15 @@ onUnmounted(() => removeJsonLd('BreadcrumbList'))
 }
 .keyword { color: var(--color-primary); font-weight: 400; }
 
+.list-main {
+  grid-column: 1;
+  min-width: 0;
+}
+
+/* 列数与 Notes.vue 的 .note-grid 保持一致，避免点类目后每行条数跳变 */
 .blog-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 .blog-card {
@@ -225,7 +265,8 @@ onUnmounted(() => removeJsonLd('BreadcrumbList'))
 
 .list-sidebar {
   grid-column: 2;
-  grid-row: 2 / 4;
+  grid-row: 2;
+  align-self: start;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -242,19 +283,20 @@ onUnmounted(() => removeJsonLd('BreadcrumbList'))
 .sidebar-list a { font-size: 13px; color: var(--color-text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-list a:hover { color: var(--color-primary); }
 
-.tag-cloud { display: flex; flex-wrap: wrap; gap: 4px; }
-.tag-item { font-size: 11px; padding: 2px 8px; background: var(--color-surface-strong); border-radius: 20px; color: var(--color-text-secondary); }
-.tag-item:hover { background: var(--color-accent-soft); color: var(--color-primary); }
-
-.empty-state { text-align: center; padding: 60px; color: var(--color-text-secondary); grid-column: 1; }
+.empty-state { text-align: center; padding: 60px; color: var(--color-text-secondary); }
 
 @media (max-width: 1200px) {
-  .blog-grid { grid-template-columns: repeat(3, 1fr); }
+  .blog-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 900px) {
   .blog-list-page { grid-template-columns: 1fr; }
   .blog-grid { grid-template-columns: repeat(2, 1fr); }
+  .list-main { grid-column: 1; }
   .list-sidebar { grid-column: 1; grid-row: auto; }
+}
+
+@media (max-width: 640px) {
+  .blog-grid { grid-template-columns: 1fr; }
 }
 </style>

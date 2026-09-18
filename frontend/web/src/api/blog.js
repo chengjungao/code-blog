@@ -11,7 +11,14 @@ export const fetchPageBySubUrl = (subUrl) => request.get(`/page/${subUrl}`)
 
 export const fetchCategories = () => request.get('/categories')
 
-export const fetchCategoryBlogs = (name, page = 1) => request.get(`/category/${name}/${page}`)
+/**
+ * 类目下的文章列表
+ * @param {string} name 类目名
+ * @param {number} page 页码
+ * @param {string} [tag] 可选：类目内再按标签收窄（两个条件同时生效）
+ */
+export const fetchCategoryBlogs = (name, page = 1, tag = '') =>
+  request.get(`/category/${name}/${page}`, tag ? { params: { tag } } : undefined)
 
 export const fetchTagBlogs = (name, page = 1) => request.get(`/tag/${name}/${page}`)
 

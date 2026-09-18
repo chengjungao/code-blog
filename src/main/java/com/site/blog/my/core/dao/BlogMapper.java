@@ -1,5 +1,6 @@
 package com.site.blog.my.core.dao;
 
+import com.site.blog.my.core.controller.vo.CategoryCountVO;
 import com.site.blog.my.core.entity.Blog;
 import com.site.blog.my.core.util.PageQueryUtil;
 import org.apache.ibatis.annotations.Param;
@@ -51,5 +52,12 @@ public interface BlogMapper {
     List<Blog> searchByKeyword(@Param("keyword") String keyword, @Param("start") int start, @Param("limit") int limit);
 
     int getSearchCount(@Param("keyword") String keyword);
+
+    /**
+     * 类目计数（列表页筛选条用），按 tb_blog 上冗余的分类名分组
+     *
+     * @param excludeCategoryNames 需要排除的分类名（技术笔记侧排除生活类），可为 null
+     */
+    List<CategoryCountVO> getCategoryCounts(@Param("excludeCategoryNames") List<String> excludeCategoryNames);
 
 }

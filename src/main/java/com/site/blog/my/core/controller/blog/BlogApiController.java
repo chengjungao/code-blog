@@ -7,7 +7,6 @@ import com.site.blog.my.core.entity.BlogLink;
 import com.site.blog.my.core.entity.GuestbookMessage;
 import com.site.blog.my.core.service.*;
 import com.site.blog.my.core.util.*;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,8 +66,32 @@ public class BlogApiController {
         data.put("blogPage", blogPageResult);
         data.put("newBlogs", blogService.getBlogListForIndexPage(1));
         data.put("hotBlogs", blogService.getBlogListForIndexPage(0));
-        data.put("hotTags", tagService.getBlogTagCountForIndex());
+        putListFilters(data, null, null);
         return ResultGenerator.genSuccessResult(data);
+    }
+
+    /**
+     * 列表页公共筛选数据：类目 chips（带已发布篇数）+ 当前类目 + 当前标签 + 该类目下的标签
+     * <p>
+     * 三个约束：
+     * 1. 技术笔记与生活杂记互不出圈——技术侧不能出现「读书/美食」标签；
+     * 2. 标签按「类目 → 标签」二级联动，未选类目时不下发标签，避免一次铺满全部标签；
+     * 3. 标签是类目内的收窄条件，故标签列表始终按类目取全量（不随已选标签收窄），
+     * 否则选中一个标签后其余标签会全部消失，无法切换。
+     *
+     * @param categoryName 当前类目；为空表示「全部」，此时只给类目 chips
+     * @param tagName      当前标签；可为空
+     */
+    private void putListFilters(Map<String, Object> data, String categoryName, String tagName) {
+        boolean life = categoryName != null && CategoryScope.LIFE_CATEGORY_NAMES.contains(categoryName);
+        // 前端据此高亮类目、并决定是否渲染标签行
+        data.put("activeCategory", categoryName);
+        data.put("activeTag", tagName);
+        // 生活类页面只出该类目的标签，不给技术类目 chips
+        data.put("categoryFilters", life ? null
+                : blogService.getCategoryCountsForScope(CategoryScope.LIFE_CATEGORY_NAMES));
+        data.put("hotTags", categoryName == null ? Collections.emptyList()
+                : tagService.getBlogTagCountForScope(categoryName, CategoryScope.LIFE_CATEGORY_NAMES));
     }
 
     /**
@@ -101,22 +125,25 @@ public class BlogApiController {
     public Result categories() {
         Map<String, Object> data = new HashMap<>();
         data.put("categories", categoryService.getAllCategories());
-        data.put("hotTags", tagService.getBlogTagCountForIndex());
+        data.put("hotTags", tagService.getBlogTagCountForScope(null, CategoryScope.LIFE_CATEGORY_NAMES));
         return ResultGenerator.genSuccessResult(data);
     }
 
     /**
      * 分类下的文章列表
+     *
+     * @param tagName 可选：类目内再按标签收窄（/category/Agent/1?tag=xxx）
      */
     @GetMapping("/category/{categoryName}/{page}")
     public Result categoryBlogs(@PathVariable("categoryName") String categoryName,
-                                @PathVariable("page") int page) {
-        PageResult blogPageResult = blogService.getBlogsPageByCategory(categoryName, page);
+                                @PathVariable("page") int page,
+                                @RequestParam(value = "tag", required = false) String tagName) {
+        PageResult blogPageResult = blogService.getBlogsPageByCategoryAndTag(categoryName, tagName, page);
         Map<String, Object> data = new HashMap<>();
         data.put("blogPage", blogPageResult);
         data.put("newBlogs", blogService.getBlogListForIndexPage(1));
         data.put("hotBlogs", blogService.getBlogListForIndexPage(0));
-        data.put("hotTags", tagService.getBlogTagCountForIndex());
+        putListFilters(data, categoryName, tagName);
         return ResultGenerator.genSuccessResult(data);
     }
 
@@ -131,7 +158,8 @@ public class BlogApiController {
         data.put("blogPage", blogPageResult);
         data.put("newBlogs", blogService.getBlogListForIndexPage(1));
         data.put("hotBlogs", blogService.getBlogListForIndexPage(0));
-        data.put("hotTags", tagService.getBlogTagCountForIndex());
+        // 标签页反查归属类目，好让筛选条高亮对应类目并给出同类目的兄弟标签
+        putListFilters(data, tagService.getTopCategoryNameByTag(tagName), tagName);
         return ResultGenerator.genSuccessResult(data);
     }
 
@@ -146,7 +174,7 @@ public class BlogApiController {
         data.put("blogPage", blogPageResult);
         data.put("newBlogs", blogService.getBlogListForIndexPage(1));
         data.put("hotBlogs", blogService.getBlogListForIndexPage(0));
-        data.put("hotTags", tagService.getBlogTagCountForIndex());
+        putListFilters(data, null, null);
         return ResultGenerator.genSuccessResult(data);
     }
 

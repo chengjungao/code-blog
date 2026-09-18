@@ -2,6 +2,7 @@ package com.site.blog.my.core.service.impl;
 
 import com.site.blog.my.core.controller.vo.BlogDetailVO;
 import com.site.blog.my.core.controller.vo.BlogListVO;
+import com.site.blog.my.core.controller.vo.CategoryCountVO;
 import com.site.blog.my.core.controller.vo.SimpleBlogListVO;
 import com.site.blog.my.core.dao.*;
 import com.site.blog.my.core.entity.Blog;
@@ -12,6 +13,7 @@ import com.site.blog.my.core.entity.BlogTagRelation;
 import com.site.blog.my.core.service.BlogService;
 import com.site.blog.my.core.service.BlogChunkService;
 import com.site.blog.my.core.solr.BlogSolrServer;
+import com.site.blog.my.core.util.CategoryScope;
 import com.site.blog.my.core.util.PageQueryUtil;
 import com.site.blog.my.core.util.PageResult;
 import com.site.blog.my.core.util.PatternUtil;
@@ -43,8 +45,8 @@ public class BlogServiceImpl implements BlogService {
     @Autowired
     private BlogChunkService blogChunkService;
 
-    /** 生活类分类名（技术笔记列表查询时需排除，它们归入「生活杂记」页） */
-    private static final List<String> LIFE_CATEGORY_NAMES = new ArrayList<>(Arrays.asList("读书心得", "做菜笔记"));
+    /** 列表页每页条数（前台 3 列栅格，9 条刚好 3 行） */
+    private static final int LIST_PAGE_SIZE = 9;
 
     @Override
     @Transactional
@@ -67,7 +69,12 @@ public class BlogServiceImpl implements BlogService {
         //保存文章
         if (blogMapper.insertSelective(blog) > 0) {
         	
-        	blogSolrServer.add(blog);
+        	// 搜索索引失败不回滚文章保存：Solr 只是加速器，索引会在应用启动后全量重建
+        	try {
+        		blogSolrServer.add(blog);
+        	} catch (Exception e) {
+        		System.err.println("[WARN] Blog indexing failed for blog " + blog.getBlogId() + ": " + e.getMessage());
+        	}
         	// 同步分块索引（仅发布状态的文章）
         	if (blog.getBlogStatus() != null && blog.getBlogStatus() == 1) {
         		try {
@@ -230,7 +237,12 @@ public class BlogServiceImpl implements BlogService {
         blogTagRelationMapper.deleteByBlogId(blog.getBlogId());
         blogTagRelationMapper.batchInsert(blogTagRelations);
         if (blogMapper.updateByPrimaryKeySelective(blogForUpdate) > 0) {
-        	blogSolrServer.add(blogForUpdate);
+        	// 同 saveBlog：索引失败只告警，不回滚文章修改
+        	try {
+        		blogSolrServer.add(blogForUpdate);
+        	} catch (Exception e) {
+        		System.err.println("[WARN] Blog re-indexing failed for blog " + blogForUpdate.getBlogId() + ": " + e.getMessage());
+        	}
         	// 同步分块索引：先删旧分块，再根据发布状态决定是否重建
         	try {
         		blogSolrServer.deleteChunksByBlogId(blogForUpdate.getBlogId());
@@ -252,10 +264,9 @@ public class BlogServiceImpl implements BlogService {
     public PageResult getBlogsForIndexPage(int page) {
         Map params = new HashMap();
         params.put("page", page);
-        //每页8条
-        params.put("limit", 8);
+        params.put("limit", LIST_PAGE_SIZE);
         params.put("blogStatus", 1);//过滤发布状态下的数据
-        params.put("excludeCategoryNames", LIFE_CATEGORY_NAMES);//排除生活类分类
+        params.put("excludeCategoryNames", CategoryScope.LIFE_CATEGORY_NAMES);//排除生活类分类
         PageQueryUtil pageUtil = new PageQueryUtil(params);
         List<Blog> blogList = blogMapper.findBlogList(pageUtil);
         List<BlogListVO> blogListVOS = getBlogListVOsByBlogs(blogList);
@@ -265,9 +276,14 @@ public class BlogServiceImpl implements BlogService {
     }
 
     @Override
+    public List<CategoryCountVO> getCategoryCountsForScope(List<String> excludeCategoryNames) {
+        return blogMapper.getCategoryCounts(excludeCategoryNames);
+    }
+
+    @Override
     public List<SimpleBlogListVO> getBlogListForIndexPage(int type) {
         List<SimpleBlogListVO> simpleBlogListVOS = new ArrayList<>();
-        List<Blog> blogs = blogMapper.findBlogListByType(type, 9, LIFE_CATEGORY_NAMES);
+        List<Blog> blogs = blogMapper.findBlogListByType(type, 9, CategoryScope.LIFE_CATEGORY_NAMES);
         if (!CollectionUtils.isEmpty(blogs)) {
             for (Blog blog : blogs) {
                 SimpleBlogListVO simpleBlogListVO = new SimpleBlogListVO();
@@ -296,7 +312,7 @@ public class BlogServiceImpl implements BlogService {
             if (tag != null && page > 0) {
                 Map param = new HashMap();
                 param.put("page", page);
-                param.put("limit", 9);
+                param.put("limit", LIST_PAGE_SIZE);
                 param.put("tagId", tag.getTagId());
                 PageQueryUtil pageUtil = new PageQueryUtil(param);
                 List<Blog> blogList = blogMapper.getBlogsPageByTagId(pageUtil);
@@ -311,33 +327,44 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     public PageResult getBlogsPageByCategory(String categoryName, int page) {
-        if (PatternUtil.validKeyword(categoryName)) {
-            BlogCategory blogCategory = categoryMapper.selectByCategoryName(categoryName);
-            if ("默认分类".equals(categoryName) && blogCategory == null) {
-                blogCategory = new BlogCategory();
-                blogCategory.setCategoryId(0);
-            }
-            if (blogCategory != null && page > 0) {
-                Map param = new HashMap();
-                param.put("page", page);
-                param.put("limit", 9);
-                param.put("blogCategoryId", blogCategory.getCategoryId());
-                param.put("blogStatus", 1);//过滤发布状态下的数据
-                PageQueryUtil pageUtil = new PageQueryUtil(param);
-                List<Blog> blogList = blogMapper.findBlogList(pageUtil);
-                List<BlogListVO> blogListVOS = getBlogListVOsByBlogs(blogList);
-                int total = blogMapper.getTotalBlogs(pageUtil);
-                PageResult pageResult = new PageResult(blogListVOS, total, pageUtil.getLimit(), pageUtil.getPage());
-                return pageResult;
-            }
+        return getBlogsPageByCategoryAndTag(categoryName, null, page);
+    }
+
+    @Override
+    public PageResult getBlogsPageByCategoryAndTag(String categoryName, String tagName, int page) {
+        if (!PatternUtil.validKeyword(categoryName) || page <= 0) {
+            return null;
         }
-        return null;
+        BlogCategory blogCategory = categoryMapper.selectByCategoryName(categoryName);
+        if ("默认分类".equals(categoryName) && blogCategory == null) {
+            blogCategory = new BlogCategory();
+            blogCategory.setCategoryId(0);
+        }
+        if (blogCategory == null) {
+            return null;
+        }
+        Map param = new HashMap();
+        param.put("page", page);
+        param.put("limit", LIST_PAGE_SIZE);
+        param.put("blogCategoryId", blogCategory.getCategoryId());
+        param.put("blogStatus", 1);//过滤发布状态下的数据
+        // 标签作为类目内的收窄条件：两个条件在同一条 SQL 里同时生效
+        if (tagName != null && !tagName.trim().isEmpty()) {
+            BlogTag tag = tagMapper.selectByTagName(tagName.trim());
+            // 标签不存在时用 -1 兜底，保证查出空集，而不是静默退化成整个类目
+            param.put("tagId", tag == null ? -1 : tag.getTagId());
+        }
+        PageQueryUtil pageUtil = new PageQueryUtil(param);
+        List<Blog> blogList = blogMapper.findBlogList(pageUtil);
+        List<BlogListVO> blogListVOS = getBlogListVOsByBlogs(blogList);
+        int total = blogMapper.getTotalBlogs(pageUtil);
+        return new PageResult(blogListVOS, total, pageUtil.getLimit(), pageUtil.getPage());
     }
 
     @Override
     public PageResult getBlogsPageBySearch(String keyword, int page) {
         if (page > 0 && PatternUtil.validKeyword(keyword)) {
-            int rows = 9;
+            int rows = LIST_PAGE_SIZE;
             int start = (page - 1) * rows;
             try {
                 PageResult pageResultTemp = blogSolrServer.search(keyword, page, rows);

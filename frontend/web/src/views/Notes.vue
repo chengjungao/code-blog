@@ -10,6 +10,8 @@
 
     <section class="notes-layout section">
       <div>
+        <FilterBar :categories="categories" :tags="hotTags" all-link="/notes" />
+
         <div class="note-grid" v-if="blogs.length">
           <article class="note-card" v-for="blog in blogs" :key="blog.blogId">
             <router-link :to="blogLink(blog)" class="note-cover">
@@ -53,14 +55,6 @@
           <h3>高频阅读</h3>
           <router-link v-for="b in hotBlogs" :key="b.blogId" :to="blogLink(b)">{{ b.blogTitle }}</router-link>
         </section>
-        <section class="side-panel" v-if="hotTags.length">
-          <h3>标签</h3>
-          <div class="tag-cloud">
-            <router-link v-for="t in hotTags" :key="t.tagName" :to="'/tag/' + t.tagName + '/1'" class="tag-pill">
-              {{ t.tagName }}({{ t.tagCount }})
-            </router-link>
-          </div>
-        </section>
       </aside>
     </section>
   </div>
@@ -71,6 +65,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fetchIndex, blogLink } from '../api/blog'
 import { setPageMeta } from '../utils/seo'
+import FilterBar from '../components/FilterBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,6 +74,7 @@ const blogs = ref([])
 const hotBlogs = ref([])
 const newBlogs = ref([])
 const hotTags = ref([])
+const categories = ref([])
 const currPage = ref(1)
 const totalPage = ref(1)
 
@@ -112,6 +108,7 @@ const loadData = async (page) => {
     hotBlogs.value = d.hotBlogs || []
     newBlogs.value = d.newBlogs || []
     hotTags.value = d.hotTags || []
+    categories.value = d.categoryFilters || []
   } catch (e) {
     console.error('加载技术笔记失败', e)
   }
@@ -227,12 +224,6 @@ watch(
 
 .side-panel a:hover {
   color: var(--color-accent);
-}
-
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .empty-state {

@@ -39,6 +39,58 @@
 	        trb GROUP BY tag_id) r ORDER BY tag_count DESC LIMIT 20 ) AS t_r LEFT JOIN tb_blog_tag t ON t_r.tag_id = t.tag_id WHERE t.is_deleted=0
     </select>
 
+    <!--
+      按分类作用域统计热门标签：技术笔记侧排除生活类分类，避免「读书/美食」标签漏进技术笔记。
+      与 getTagCount 的差别：只统计「已发布且未删除」文章（与 /tag 页实际能列出的结果一致），
+      排序补 tag_id 以保证同计数时结果稳定。
+    -->
+    <select id="getTagCountByScope" resultMap="BaseCountResultMap">
+        SELECT t_r.tag_id, t_r.tag_count, t.tag_name
+        FROM (
+            SELECT r.tag_id, r.tag_count FROM (
+                SELECT tr.tag_id, COUNT(*) AS tag_count
+                FROM tb_blog_tag_relation tr
+                INNER JOIN tb_blog b ON tr.blog_id = b.blog_id
+                WHERE b.is_deleted = 0 AND b.blog_status = 1
+                <if test="categoryName != null and categoryName != ''">
+                    AND b.blog_category_name = #{categoryName}
+                </if>
+                <if test="(categoryName == null or categoryName == '') and excludeCategoryNames != null and excludeCategoryNames.size() > 0">
+                    AND b.blog_category_name NOT IN
+                    <foreach collection="excludeCategoryNames" item="name" open="(" separator="," close=")">
+                        #{name}
+                    </foreach>
+                </if>
+                GROUP BY tr.tag_id
+            ) r
+            ORDER BY r.tag_count DESC, r.tag_id ASC
+            LIMIT 20
+        ) AS t_r
+        LEFT JOIN tb_blog_tag t ON t_r.tag_id = t.tag_id
+        WHERE t.is_deleted = 0
+    </select>
+
+    <!--
+      标签页反查类目：取该标签下「已发布」文章数最多的分类，作为筛选条的展示上下文。
+      标签可跨分类，故取占比最高者；无有效文章时返回空（调用方回退为「全部」）。
+      与 getTagCountByScope 的口径保持一致：只算已发布、未删除的文章。
+    -->
+    <select id="getTopCategoryNameByTag" resultType="java.lang.String">
+        SELECT b.blog_category_name
+        FROM tb_blog_tag_relation tr
+        INNER JOIN tb_blog b ON tr.blog_id = b.blog_id
+        INNER JOIN tb_blog_tag t ON tr.tag_id = t.tag_id
+        WHERE t.tag_name = #{tagName}
+          AND t.is_deleted = 0
+          AND b.is_deleted = 0
+          AND b.blog_status = 1
+          AND b.blog_category_name IS NOT NULL
+          AND b.blog_category_name &lt;&gt; ''
+        GROUP BY b.blog_category_name
+        ORDER BY COUNT(*) DESC, b.blog_category_name ASC
+        LIMIT 1
+    </select>
+
     <select id="getTotalTags" parameterType="Map" resultType="int">
     select count(*)  from tb_blog_tag
     where is_deleted=0
