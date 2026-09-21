@@ -49,11 +49,17 @@
       <aside class="notes-sidebar">
         <section class="side-panel" v-if="newBlogs.length">
           <h3>最新发布</h3>
-          <router-link v-for="b in newBlogs" :key="b.blogId" :to="blogLink(b)">{{ b.blogTitle }}</router-link>
+          <router-link v-for="b in newBlogs" :key="b.blogId" :to="blogLink(b)" class="side-item">
+            <span class="side-title" :title="b.blogTitle">{{ b.blogTitle }}</span>
+            <span class="side-meta">{{ b.createTime }}</span>
+          </router-link>
         </section>
         <section class="side-panel" v-if="hotBlogs.length">
           <h3>高频阅读</h3>
-          <router-link v-for="b in hotBlogs" :key="b.blogId" :to="blogLink(b)">{{ b.blogTitle }}</router-link>
+          <router-link v-for="b in hotBlogs" :key="b.blogId" :to="blogLink(b)" class="side-item">
+            <span class="side-title" :title="b.blogTitle">{{ b.blogTitle }}</span>
+            <span class="side-meta" :title="(b.blogViews || 0) + ' 次阅读'">{{ formatViews(b.blogViews) }}</span>
+          </router-link>
         </section>
       </aside>
     </section>
@@ -87,6 +93,13 @@ const pageNumbers = computed(() => {
 })
 
 const getInitial = (title = '') => title.trim().slice(0, 1) || 'N'
+
+// 侧栏宽度有限，浏览量只在这里压缩展示（详情页仍显示完整数字）
+const formatViews = (n) => {
+  const v = Number(n) || 0
+  if (v < 10000) return String(v)
+  return (v / 10000).toFixed(1).replace(/\.0$/, '') + '万'
+}
 
 const goPage = (p) => {
   router.push(p === 1 ? '/notes' : '/notes/page/' + p)
@@ -200,6 +213,8 @@ watch(
   gap: 16px;
   position: sticky;
   top: 92px;
+  /* 它是 .notes-layout 的 grid 项，min-width:auto 会按内容算最小宽度把轨道撑开 */
+  min-width: 0;
 }
 
 .side-panel {
@@ -209,6 +224,8 @@ watch(
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
+  /* 它是 .notes-sidebar 的 grid 项，同理 */
+  min-width: 0;
 }
 
 .side-panel h3 {
@@ -216,10 +233,35 @@ watch(
   font-size: 15px;
 }
 
+/* 侧栏条目：标题单行省略 + 末尾元信息（日期 / 浏览量）
+   min-width:0 + overflow:hidden 必须加在「网格项」这一层（.side-panel a 本身就是网格项）：
+   网格项默认 min-width:auto，自动最小尺寸按内容算，标题 white-space:nowrap 时 min-content
+   等于整行文字宽度，会把网格轨道撑宽 → 手机端出现横向滚动条。
+   只给内层 .side-title 设 min-width:0 是不够的。 */
 .side-panel a {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
   color: var(--color-subtle);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.side-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-meta {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .side-panel a:hover {

@@ -61,7 +61,10 @@
         <h4>高频阅读</h4>
         <ul class="sidebar-list">
           <li v-for="b in hotBlogs" :key="b.blogId">
-            <router-link :to="blogLink(b)">{{ b.blogTitle }}</router-link>
+            <router-link :to="blogLink(b)" class="side-item">
+              <span class="side-title" :title="b.blogTitle">{{ b.blogTitle }}</span>
+              <span class="side-meta" :title="(b.blogViews || 0) + ' 次阅读'">{{ formatViews(b.blogViews) }}</span>
+            </router-link>
           </li>
         </ul>
       </div>
@@ -69,7 +72,10 @@
         <h4>最新发布</h4>
         <ul class="sidebar-list">
           <li v-for="b in newBlogs" :key="b.blogId">
-            <router-link :to="blogLink(b)">{{ b.blogTitle }}</router-link>
+            <router-link :to="blogLink(b)" class="side-item">
+              <span class="side-title" :title="b.blogTitle">{{ b.blogTitle }}</span>
+              <span class="side-meta">{{ b.createTime }}</span>
+            </router-link>
           </li>
         </ul>
       </div>
@@ -117,6 +123,13 @@ const listTitle = computed(() => {
 })
 
 const getInitial = (title = '') => title.trim().slice(0, 1) || 'N'
+
+// 侧栏宽度有限，浏览量只在这里压缩展示（详情页仍显示完整数字）
+const formatViews = (n) => {
+  const v = Number(n) || 0
+  if (v < 10000) return String(v)
+  return (v / 10000).toFixed(1).replace(/\.0$/, '') + '万'
+}
 
 const pageNumbers = computed(() => {
   const pages = []
@@ -270,17 +283,50 @@ onUnmounted(() => removeJsonLd('BreadcrumbList'))
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* 关键：它是 .blog-list-page 的 grid 项，同时是纵向 flex 容器。
+     min-width:auto 时，它的 min-content 宽度会把子项里不换行的长标题算进去，
+     一路顶到外层轨道 → 手机上整页出横向滚动条。 */
+  min-width: 0;
 }
 .sidebar-section {
   background: var(--color-card);
   border-radius: var(--radius);
   padding: 16px;
   border: 1px solid var(--color-border);
+  /* 同上：它是 .list-sidebar 的 flex 项 */
+  min-width: 0;
 }
 .sidebar-section h4 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
 .sidebar-list { list-style: none; padding: 0; }
 .sidebar-list li { margin-bottom: 6px; }
-.sidebar-list a { font-size: 13px; color: var(--color-text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 标题单行省略 + 末尾元信息（日期 / 浏览量）
+   min-width:0 + overflow:hidden 必须加在条目本身（它是 grid/flex 的直接子项）：
+   子项默认 min-width:auto，自动最小尺寸按内容算，标题 white-space:nowrap 时
+   min-content 等于整行文字宽度，会把容器撑宽 → 手机端出横向滚动条。
+   只给内层 .side-title 设 min-width:0 挡不住。 */
+.sidebar-list .side-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.sidebar-list .side-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-list .side-meta {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
 .sidebar-list a:hover { color: var(--color-primary); }
 
 .empty-state { text-align: center; padding: 60px; color: var(--color-text-secondary); }
