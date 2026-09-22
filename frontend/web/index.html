@@ -23,7 +23,15 @@
     <meta name="twitter:description" content="搜索架构、AI 搜索、Agent 与 MCP 平台的工程实践，也写写做菜和读书。" />
 
     <title>拾光集 — 程军高 | 搜索架构与 AI 工程</title>
-    <link rel="canonical" href="https://www.chengjungao.cn/" />
+    <!--
+      这里刻意不放 <link rel="canonical">。
+      本文件是所有未预渲染路径的兜底壳（nginx try_files 最终回退到 index.html），
+      若在此写死 canonical=https://www.chengjungao.cn/，那么每个壳页面都会对外宣称
+      「我是首页的副本」——对爬虫是重复内容信号（百度不执行 JS，看到的正是这个壳）。
+      每个视图都会经 utils/seo.js 的 setPageMeta → setCanonical 注入自指 canonical，
+      Google 等执行 JS 的爬虫拿到的是正确值；不执行 JS 的爬虫则退化为默认的 self-canonical，
+      这比错误的「指向首页」要好。
+    -->
 
     <!-- 结构化数据：Person + WebSite -->
     <script type="application/ld+json">

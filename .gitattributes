@@ -1,2 +1,8 @@
 *.js linguist-language=java
 *.css linguist-language=java
+
+# 行尾保护（本机 core.autocrlf=true，检出时会把 LF 转成 CRLF）
+# nginx 配置：指令行尾的 \r 会被当成 token 的一部分，导致解析异常
+deploy/nginx.conf text eol=lf
+# 站点验证文件：必须逐字节等于平台下发的校验串，禁止任何形式的换行转换
+frontend/web/public/baidu_verify_*.html -text

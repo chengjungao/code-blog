@@ -96,6 +96,18 @@ public class StaticRenderService {
         }
     }
 
+    // 需要预渲染的固定页面。
+    // 这份清单必须与 SeoController 提交进 sitemap 的固定页面保持一致 —— 否则会出现
+    // 「sitemap 主动提交了一个只有 SPA 空壳的页面」，那是搜索引擎判定低质量站点最直接的信号。
+    // 曾经 /categories、/portfolio 就处于这种状态（sitemap 里有、渲染清单里没有）。
+    private static final String[] STATIC_PAGES = {
+            "/",          // 首页
+            "/notes",     // 技术笔记列表
+            "/life",      // 生活杂记列表
+            "/categories",// 分类聚合页
+            "/portfolio"  // 作品集
+    };
+
     /**
      * 获取所有已发布博客的 URL
      */
@@ -105,7 +117,9 @@ public class StaticRenderService {
         // 获取所有已发布博客
         HashMap<String, Object> params = new HashMap<>();
         params.put("page", 1);
-        params.put("limit", 10000); // 获取所有
+        // 取全部：超过 PageQueryUtil.MAX_LIMIT 时按上限截断（历史坑：这里曾被静默重置成 10，
+        // 导致预渲染只覆盖最新 10 篇，其余文章的快照永远停在各自发布次日）
+        params.put("limit", 10000);
         PageQueryUtil pageUtil = new PageQueryUtil(params);
         PageResult pageResult = blogService.getBlogsPage(pageUtil);
         
@@ -118,12 +132,10 @@ public class StaticRenderService {
             }
         }
 
-        // 添加首页
-        urls.add(baseUrl + "/");
-        // 添加笔记列表页
-        urls.add(baseUrl + "/notes");
-        // 添加生活杂记页
-        urls.add(baseUrl + "/life");
+        // 添加固定页面（首页、列表页、聚合页）
+        for (String page : STATIC_PAGES) {
+            urls.add(baseUrl + page);
+        }
 
         return urls;
     }
