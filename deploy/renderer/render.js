@@ -25,6 +25,21 @@ const CONFIG = {
     timeout: 30000,
     // 并发渲染数
     concurrency: 1,
+    // 预渲染必须读「源站真相」，不能被 CDN 缓存污染。
+    //
+    // 背景：页面地址用的是公网域名（blog.base-url），浏览器解析它就会走到站前的
+    // 阿里云 CDN。CDN 一旦缓存了某个接口的旧副本（本站历史上 /blog/api/* 被缓存
+    // 24 小时，且因 Vary: Accept-Encoding 按编码分裂成多份互不同步的副本），
+    // Puppeteer 就会把**旧数据固化进静态快照** —— 表现为「源站已经是 22 篇，
+    // 快照渲染出来还是 21 篇」，而且**重新部署 + 重新渲染都救不回来**，
+    // 因为每一次渲染都会再读一遍那份旧副本。
+    //
+    // 这里用 Chrome 的 host-resolver-rules 把页面域名映射到容器自己的 127.0.0.1：
+    // 443 端口、SNI、Host 头都与走公网时完全一致（容器内 nginx 就是 listen 443），
+    // 拿到的 HTML/接口内容只会「更真」，不会不同 —— 只是绕开了 CDN 这一层缓存。
+    //
+    // 应急开关：设 RENDER_LOCAL_ORIGIN='' （空串）即可退回旧行为（走公网）。
+    localOrigin: process.env.RENDER_LOCAL_ORIGIN ?? '127.0.0.1',
     // 浏览器参数
     browserArgs: [
         '--no-sandbox',
@@ -34,6 +49,34 @@ const CONFIG = {
         '--disable-software-rasterizer'
     ]
 };
+
+/**
+ * 构造「绕过 CDN、直连源站」的解析规则
+ *
+ * 把待渲染 URL 里出现的域名全部映射到 CONFIG.localOrigin（默认 127.0.0.1）。
+ * Chrome 的 --host-resolver-rules 只改 DNS 解析结果，不改 Host 头、不改 SNI、
+ * 不改端口，因此容器内 nginx 收到的请求与来自公网时一模一样。
+ *
+ * @param {string[]} urls 待渲染的完整 URL 列表
+ * @returns {string|null} 形如 "MAP a.com 127.0.0.1,MAP b.com 127.0.0.1"；无需映射时返回 null
+ */
+function buildHostResolverRules(urls) {
+    if (!CONFIG.localOrigin) {
+        return null;
+    }
+    const hosts = new Set();
+    for (const url of urls) {
+        try {
+            hosts.add(new URL(url).hostname);
+        } catch (e) {
+            // 非法 URL 交给后续流程报错，这里只管解析域名
+        }
+    }
+    if (hosts.size === 0) {
+        return null;
+    }
+    return Array.from(hosts).map(h => `MAP ${h} ${CONFIG.localOrigin}`).join(',');
+}
 
 /**
  * 确保输出目录存在
@@ -252,10 +295,22 @@ async function renderUrls(urls) {
     
     // 启动浏览器（puppeteer-core 需要显式指定 Chromium 路径）
     const chromiumPath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
+
+    // 绕开站前 CDN：把页面域名解析到本机 nginx，保证快照取的是源站真相
+    const resolverRules = buildHostResolverRules(urls);
+    const browserArgs = resolverRules
+        ? CONFIG.browserArgs.concat([`--host-resolver-rules=${resolverRules}`])
+        : CONFIG.browserArgs;
+    if (resolverRules) {
+        console.log(`  源站直连: ${resolverRules}  (绕过 CDN)`);
+    } else {
+        console.log(`  ⚠️ 未启用源站直连（RENDER_LOCAL_ORIGIN 为空），渲染结果可能被 CDN 缓存污染`);
+    }
+
     const browser = await puppeteer.launch({
         headless: 'new',
         executablePath: chromiumPath,
-        args: CONFIG.browserArgs
+        args: browserArgs
     });
     
     const results = [];
