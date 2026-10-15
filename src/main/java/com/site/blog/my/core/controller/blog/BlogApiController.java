@@ -5,7 +5,9 @@ import com.site.blog.my.core.controller.vo.BlogDetailVO;
 import com.site.blog.my.core.entity.BlogComment;
 import com.site.blog.my.core.entity.BlogLink;
 import com.site.blog.my.core.entity.GuestbookMessage;
+import com.site.blog.my.core.entity.PageStatEvent;
 import com.site.blog.my.core.service.*;
+import com.site.blog.my.core.service.impl.PageStatLogServiceImpl;
 import com.site.blog.my.core.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.util.StringUtils;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +50,7 @@ public class BlogApiController {
     @Resource
     private IpRateLimiter ipRateLimiter;
     @Resource
-    private VisitStatService visitStatService;
+    private PageStatLogService pageStatLogService;
 
     /**
      * 获取网站配置
@@ -316,38 +320,101 @@ public class BlogApiController {
     }
 
     /**
-     * 获取客户端真实 IP（兼容 nginx 反向代理）
+     * 获取客户端真实 IP。
+     *
+     * <p>原实现取 X-Forwarded-For <b>第一段</b>，而第一段是客户端可以随便伪造的，
+     * 用它做限流等于没限流（改个 header 就换一个身份）。
+     * 统一改走 {@link ClientIpResolver}：CDN 写入的地址在链尾，从后往前取第一个公网地址。
      */
     private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-            // 多级代理时取第一个非 unknown 的 IP
-            int idx = ip.indexOf(',');
-            if (idx > 0) {
-                return ip.substring(0, idx).trim();
-            }
-            return ip.trim();
-        }
-        ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-            return ip.trim();
-        }
-        return request.getRemoteAddr();
+        return ClientIpResolver.resolve(request).getIp();
     }
 
     /**
-     * 页面访问统计埋点（实时数据只进内存，定时聚合写 DB）
+     * 页面访问统计埋点。
+     *
+     * <p><b>这个接口的唯一职责是「用最快速度收下数据」</b>：
+     * 取字段 → 塞进有界内存队列 → 立刻返回，<b>不做任何磁盘 IO、DB IO 或锁等待</b>。
+     * 真正的落盘（JSONL）由 {@code PageStatLogService} 的单消费者线程批量完成。
+     *
+     * <p>为什么这样设计：埋点是「高频、低价值、可丢失」的请求。
+     * 若在 Tomcat 线程里直接写文件，磁盘抖动或日志盘写满就会让请求线程全部堆积，
+     * 反过来把整站接口拖慢——埋点把主站拖挂是最不划算的事故。
+     * 队列满时直接丢弃并计数（报表「数据健康」里可见），绝不阻塞请求。
      */
     @PostMapping("/stat")
-    public Result stat(HttpServletRequest request, @RequestBody Map<String, Object> body) {
-        String pagePath = body.get("pagePath") != null ? body.get("pagePath").toString() : null;
-        if (StringUtils.isEmpty(pagePath)) {
+    public Result stat(HttpServletRequest request, @RequestBody(required = false) Map<String, Object> body) {
+        if (body == null || body.isEmpty()) {
             return ResultGenerator.genSuccessResult();
         }
-        if (pagePath.length() > 200) {
-            pagePath = pagePath.substring(0, 200);
+        PageStatEvent event = new PageStatEvent();
+        // 兼容旧版前端只发 {pagePath}
+        event.setPath(text(body, "pagePath", 200));
+        if (event.getPath() == null) {
+            event.setPath(text(body, "path", 200));
         }
-        visitStatService.record(pagePath, getClientIp(request));
+        event.setType(text(body, "type", 16));
+        event.setTitle(text(body, "title", 120));
+        event.setRef(text(body, "ref", 300));
+        event.setVid(text(body, "vid", 64));
+        event.setSid(text(body, "sid", 64));
+        event.setScr(text(body, "scr", 20));
+        event.setLang(text(body, "lang", 20));
+        event.setTs(text(body, "ts", 32));
+        event.setDur(number(body.get("dur")));
+        event.setEntry(Boolean.TRUE.equals(body.get("entry")));
+
+        event.setSt(LocalDateTime.now().format(STAT_TIME));
+        ClientIpResolver.Resolved ip = ClientIpResolver.resolve(request);
+        event.setIp(ip.getIp());
+        event.setIpSrc(ip.getSource());
+        event.setXff(ip.getRawXff());
+        event.setInternal(ip.isInternal());
+        event.setUa(clip(request.getHeader("User-Agent"), 400));
+
+        // 非法路径在入队前就丢掉，避免脏数据占用队列容量
+        if (PageStatLogServiceImpl.normalizePath(event.getPath()) == null) {
+            return ResultGenerator.genSuccessResult();
+        }
+        pageStatLogService.offer(event);
         return ResultGenerator.genSuccessResult();
+    }
+
+    /** 固定宽度的时间格式，避免每次上报都构造 DateTimeFormatter */
+    private static final DateTimeFormatter STAT_TIME =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private static String text(Map<String, Object> body, String key, int max) {
+        Object o = body.get(key);
+        if (o == null) {
+            return null;
+        }
+        String s = o instanceof String ? (String) o : String.valueOf(o);
+        s = s.trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        return s.length() > max ? s.substring(0, max) : s;
+    }
+
+    private static Long number(Object o) {
+        if (o instanceof Number) {
+            return ((Number) o).longValue();
+        }
+        if (o instanceof String) {
+            try {
+                return Long.parseLong(((String) o).trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static String clip(String s, int max) {
+        if (s == null) {
+            return null;
+        }
+        return s.length() <= max ? s : s.substring(0, max);
     }
 }

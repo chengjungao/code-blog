@@ -50,6 +50,23 @@ export function getStatOverview(days = 14) {
   })
 }
 
+// ===== 多维访问报表（明细口径：读 JSONL 聚合，缺失区间自动回退 DB） =====
+export function getStatReport(days = 14) {
+  return request({
+    url: '/stat/report',
+    method: 'get',
+    params: { days }
+  })
+}
+
+// ===== 今日实时概览（内存计数，不等 5 分钟聚合） =====
+export function getStatRealtime() {
+  return request({
+    url: '/stat/realtime',
+    method: 'get'
+  })
+}
+
 // ===== 验证码（直接访问后端） =====
 export function getKaptcha() {
   return axios.create({ baseURL: '', withCredentials: true }).get('/common/kaptcha', {

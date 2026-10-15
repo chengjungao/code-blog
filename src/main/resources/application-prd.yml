@@ -2,6 +2,11 @@
 file:
   attachment: /var/blog/data/
 
+# 访问明细落盘目录。必须落在宿主机挂载卷里（部署命令已挂 -v /var/blog/data:/var/blog/data），
+# 否则容器重建时明细全部丢失；一次会话的统计维度只有明细文件里有，丢了就再也补不回来。
+page-stat:
+  log-dir: ${PAGE_STAT_LOG_DIR:/var/blog/data/page-stat}
+
 blog:
   base-url: ${BLOG_BASE_URL:https://www.chengjungao.cn}
 

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { reportVisit } from '../api/blog'
+import { trackPageview } from '../utils/tracker'
 
 const routes = [
   { path: '/', name: 'Home', component: () => import('../views/Home.vue') },
@@ -28,9 +28,10 @@ const router = createRouter({
   scrollBehavior() { return { top: 0 } }
 })
 
-// 页面访问统计埋点（记录前台页面路径，用于访问分析）
+// 页面访问统计埋点：单发上报（无队列、无批量），削峰交给服务端有界队列
+// 预渲染 / 无头浏览器环境由 tracker 内部自动关闭，不会污染统计
 router.afterEach((to) => {
-  reportVisit(to.path)
+  trackPageview(to)
 })
 
 export default router

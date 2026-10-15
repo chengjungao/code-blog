@@ -35,9 +35,8 @@ export const submitMessage = (data) => request.post('/message', data)
 export const assistantChat = (message, history = []) =>
   chatRequest.post('/assistant', { message, history })
 
-// 页面访问统计埋点（fire-and-forget，失败不影响页面）
-export const reportVisit = (pagePath) =>
-  request.post('/stat', { pagePath }).catch(() => {})
+// 访问统计埋点已迁到 utils/tracker.js（单发上报 + 停留时长 + 预渲染屏蔽）。
+// 这里不再提供 reportVisit：走 axios 会被拦截器统一处理，反而绕不开「失败静默」的旧路径。
 
 /**
  * 生成博客链接：优先使用自定义路径（blogSubUrl），否则使用 /notes/:blogId

@@ -1,229 +1,573 @@
 <template>
-  <div class="visit-stat">
-    <!-- 顶部统计卡片 -->
-    <el-row :gutter="16" style="margin-bottom: 16px;">
-      <el-col :xs="12" :sm="5">
+  <div v-loading="loading" class="visit-stat">
+    <!-- 顶部：时间范围 -->
+    <div class="toolbar">
+      <el-radio-group v-model="days" @change="reload">
+        <el-radio-button :value="7">近 7 天</el-radio-button>
+        <el-radio-button :value="14">近 14 天</el-radio-button>
+        <el-radio-button :value="30">近 30 天</el-radio-button>
+      </el-radio-group>
+      <span v-if="report.generatedAt" class="gen-at">统计时间 {{ report.generatedAt }}</span>
+      <el-button size="small" :loading="loading" @click="reload">刷新</el-button>
+    </div>
+
+    <!-- 数据健康预警：只在真的出问题时出现，避免天天喊狼来了 -->
+    <el-alert
+      v-if="healthAlert"
+      :title="healthAlert"
+      type="warning"
+      show-icon
+      :closable="false"
+      class="alert-row"
+    />
+
+    <!-- 概览卡片 -->
+    <el-row :gutter="12" class="card-row">
+      <el-col v-for="c in summaryCards" :key="c.label" :xs="12" :sm="8" :md="4">
         <div class="stat-card">
-          <div class="stat-value">{{ formatNumber(totalPv) }}</div>
-          <div class="stat-label">总浏览量 PV</div>
-        </div>
-      </el-col>
-      <el-col :xs="12" :sm="5">
-        <div class="stat-card">
-          <div class="stat-value">{{ formatNumber(totalUv) }}</div>
-          <div class="stat-label">总访客数 UV</div>
-        </div>
-      </el-col>
-      <el-col :xs="24" :sm="14">
-        <div class="stat-card range-card">
-          <span class="stat-label" style="margin-right: 12px;">时间范围</span>
-          <el-radio-group v-model="days" @change="fetchData">
-            <el-radio-button :value="7">近 7 天</el-radio-button>
-            <el-radio-button :value="14">近 14 天</el-radio-button>
-            <el-radio-button :value="30">近 30 天</el-radio-button>
-          </el-radio-group>
+          <div class="stat-value">{{ c.value }}</div>
+          <div class="stat-label">{{ c.label }}</div>
+          <div v-if="c.hint" class="stat-hint">{{ c.hint }}</div>
         </div>
       </el-col>
     </el-row>
 
-    <!-- PV 趋势 -->
+    <!-- 访问趋势 -->
     <el-card shadow="never" class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>浏览量趋势（PV）</span>
-          <span class="card-hint">每 5 分钟聚合一次</span>
+          <span>访问趋势</span>
+          <div class="ctrl">
+            <el-radio-group v-model="gran" size="small">
+              <el-radio-button value="day">按天</el-radio-button>
+              <el-radio-button value="hour">按小时</el-radio-button>
+            </el-radio-group>
+            <el-radio-group v-model="trendType" size="small">
+              <el-radio-button value="line">折线</el-radio-button>
+              <el-radio-button value="area">面积</el-radio-button>
+              <el-radio-button value="bar">柱状</el-radio-button>
+            </el-radio-group>
+            <span v-if="dbDays" class="card-hint">{{ dbDays }} 天为 DB 汇总口径（明细上线前）</span>
+          </div>
         </div>
       </template>
-      <BarChart v-if="pvData.length" :data="pvData" color="#409eff" />
+      <BaseChart v-if="trendData.length" :option="trendOption" :height="300" />
       <el-empty v-else description="暂无数据" :image-size="80" />
     </el-card>
 
-    <!-- UV 趋势 -->
-    <el-card shadow="never" class="chart-card">
-      <template #header>
-        <div class="card-header">
-          <span>独立访客趋势（UV）</span>
-          <span class="card-hint">按 IP 去重</span>
-        </div>
-      </template>
-      <BarChart v-if="uvData.length" :data="uvData" color="#67c23a" />
-      <el-empty v-else description="暂无数据" :image-size="80" />
-    </el-card>
+    <el-row :gutter="12">
+      <!-- 时段分布 -->
+      <el-col :xs="24" :md="12">
+        <el-card shadow="never" class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>时段分布（24 小时）</span>
+              <el-radio-group v-model="hourType" size="small">
+                <el-radio-button value="bar">柱状</el-radio-button>
+                <el-radio-button value="line">折线</el-radio-button>
+              </el-radio-group>
+            </div>
+          </template>
+          <BaseChart v-if="hourly.length" :option="hourOption" :height="260" />
+          <el-empty v-else description="暂无数据" :image-size="70" />
+        </el-card>
+      </el-col>
+
+      <!-- 来源构成 -->
+      <el-col :xs="24" :md="12">
+        <el-card shadow="never" class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>访问来源</span>
+              <el-radio-group v-model="sourceType" size="small">
+                <el-radio-button value="pie">环形</el-radio-button>
+                <el-radio-button value="bar">柱状</el-radio-button>
+                <el-radio-button value="line">折线</el-radio-button>
+              </el-radio-group>
+            </div>
+          </template>
+          <BaseChart v-if="sources.length" :option="sourceOption" :height="260" />
+          <el-empty v-else description="暂无数据" :image-size="70" />
+        </el-card>
+      </el-col>
+    </el-row>
 
     <!-- TOP 页面 -->
     <el-card shadow="never" class="chart-card">
       <template #header>
         <div class="card-header">
-          <span>热门页面 TOP 10</span>
-          <span class="card-hint">按 PV 排序</span>
+          <span>热门页面 TOP {{ pages.length }}</span>
+          <el-radio-group v-model="pageType" size="small">
+            <el-radio-button value="bar">横向柱状</el-radio-button>
+            <el-radio-button value="pie">环形</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
-      <div v-if="topPages.length" class="top-list">
-        <div class="top-item" v-for="(p, i) in topPages" :key="p.pagepath">
-          <span class="top-rank" :class="{ 'top-3': i < 3 }">{{ i + 1 }}</span>
-          <span class="top-path" :title="p.pagepath">{{ p.pagepath }}</span>
-          <div class="top-bar-wrap">
-            <div class="top-bar" :style="{ width: barWidth(p.pv) }"></div>
-          </div>
-          <span class="top-pv">{{ formatNumber(p.pv) }}</span>
-        </div>
+      <div v-if="pages.length">
+        <BaseChart :option="pageOption" :height="Math.max(240, pages.length * 22 + 40)" />
+        <el-table :data="pages" size="small" class="page-table">
+          <el-table-column label="#" type="index" width="46" />
+          <el-table-column label="页面" prop="path" min-width="220" show-overflow-tooltip />
+          <el-table-column label="PV" width="90" align="right">
+            <template #default="{ row }">{{ row.pv }}</template>
+          </el-table-column>
+          <el-table-column label="占比" min-width="150">
+            <template #default="{ row }">
+              <el-progress :percentage="pctOf(row.pv)" :stroke-width="8" :show-text="false" />
+            </template>
+          </el-table-column>
+          <el-table-column label="UV" width="80" align="right" />
+          <el-table-column label="落地次数" width="90" align="right" prop="entries" />
+          <el-table-column label="平均停留" width="100" align="right">
+            <template #default="{ row }">{{ fmtDur(row.avgDuration) }}</template>
+          </el-table-column>
+        </el-table>
       </div>
       <el-empty v-else description="暂无数据" :image-size="80" />
+    </el-card>
+
+    <el-row :gutter="12">
+      <!-- 终端画像 -->
+      <el-col :xs="24" :md="12">
+        <el-card shadow="never" class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>终端画像</span>
+              <div class="ctrl">
+                <el-radio-group v-model="profileMetric" size="small">
+                  <el-radio-button value="devices">设备</el-radio-button>
+                  <el-radio-button value="browsers">浏览器</el-radio-button>
+                  <el-radio-button value="systems">系统</el-radio-button>
+                </el-radio-group>
+                <el-radio-group v-model="profileType" size="small">
+                  <el-radio-button value="pie">环形</el-radio-button>
+                  <el-radio-button value="bar">柱状</el-radio-button>
+                </el-radio-group>
+              </div>
+            </div>
+          </template>
+          <BaseChart v-if="profileList.length" :option="profileOption" :height="260" />
+          <el-empty v-else description="暂无数据" :image-size="70" />
+        </el-card>
+      </el-col>
+
+      <!-- 停留时长 -->
+      <el-col :xs="24" :md="12">
+        <el-card shadow="never" class="chart-card">
+          <template #header>
+            <div class="card-header">
+              <span>停留时长分布</span>
+              <el-radio-group v-model="durType" size="small">
+                <el-radio-button value="bar">柱状</el-radio-button>
+                <el-radio-button value="line">折线</el-radio-button>
+              </el-radio-group>
+            </div>
+          </template>
+          <BaseChart v-if="durations.length" :option="durOption" :height="260" />
+          <el-empty v-else description="暂无数据" :image-size="70" />
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 数据健康 -->
+    <el-card shadow="never" class="chart-card">
+      <template #header>
+        <div class="card-header">
+          <span>数据健康</span>
+          <span class="card-hint">
+            埋点经服务端有界内存队列 → 单消费者线程写文件；队列满会丢弃并计数
+          </span>
+        </div>
+      </template>
+      <el-descriptions :column="4" border size="small">
+        <el-descriptions-item label="今日实时">
+          {{ realtime.pv || 0 }} PV / {{ realtime.uv || 0 }} UV
+        </el-descriptions-item>
+        <el-descriptions-item label="队列积压">
+          {{ queue.queueSize || 0 }} / {{ queue.queueCapacity || 0 }}
+        </el-descriptions-item>
+        <el-descriptions-item label="累计接收">{{ queue.received || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="已写文件">{{ queue.written || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="队列丢弃">
+          <span :class="{ bad: (queue.dropped || 0) > 0 }">{{ queue.dropped || 0 }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="非法路径">
+          {{ queue.rejected || 0 }}
+        </el-descriptions-item>
+        <el-descriptions-item label="爬虫过滤">{{ health.bot || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="内网过滤">{{ health.internal || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="消费者线程">
+          <el-tag :type="queue.consumerAlive ? 'success' : 'danger'" size="small">
+            {{ queue.consumerAlive ? '运行中' : '已停止' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="最近写入">
+          {{ queue.lastWrite || '—' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="明细口径天数">{{ health.logDays || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="回退 DB 天数">{{ health.dbFallbackDays || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="IP 记录方式">
+          {{ queue.ipMode === 'mask' ? '网段脱敏' : '完整 IP' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="保留天数">{{ queue.retainDays || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="明细目录" :span="2">{{ queue.logDir }}</el-descriptions-item>
+      </el-descriptions>
+      <div v-if="files.length" class="files">
+        <span class="card-hint">明细文件：</span>
+        <el-tag v-for="f in files.slice(0, 12)" :key="f" size="small" type="info" class="file-tag">
+          {{ f }}
+        </el-tag>
+        <span v-if="files.length > 12" class="card-hint">…共 {{ files.length }} 个</span>
+      </div>
+      <div v-if="queue.lastError" class="err">最近异常：{{ queue.lastError }}</div>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h } from 'vue'
-import { getStatOverview } from '../api/admin'
+import { ref, computed, onMounted } from 'vue'
+import BaseChart from '../components/BaseChart.vue'
+import { getStatReport } from '../api/admin'
+
+const PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#64748b']
 
 const days = ref(14)
-const totalPv = ref(0)
-const totalUv = ref(0)
-const daily = ref([])
-const topPages = ref([])
+const loading = ref(false)
+const report = ref({})
 
-// 纯 SVG 柱状图组件（不引入图表库）
-const BarChart = {
-  name: 'BarChart',
-  props: {
-    data: { type: Array, default: () => [] },
-    color: { type: String, default: '#409eff' }
-  },
-  setup(props) {
-    const W = 760
-    const H = 240
-    const topPad = 26
-    const bottomPad = 34
+// 各卡片的展示形态
+const gran = ref('day')
+const trendType = ref('line')
+const hourType = ref('bar')
+const sourceType = ref('pie')
+const pageType = ref('bar')
+const profileMetric = ref('devices')
+const profileType = ref('pie')
+const durType = ref('bar')
 
-    const max = computed(() => Math.max(1, ...props.data.map(d => d.value)))
+const trend = computed(() => report.value.trend || [])
+const hourly = computed(() => report.value.hourly || [])
+const pages = computed(() => report.value.pages || [])
+const sources = computed(() => report.value.sources || [])
+const durations = computed(() => report.value.durations || [])
+const summary = computed(() => report.value.summary || {})
+const health = computed(() => report.value.health || {})
+const queue = computed(() => report.value.queue || {})
+const realtime = computed(() => report.value.realtime || {})
+const files = computed(() => report.value.files || [])
 
-    const slotW = computed(() => W / props.data.length)
-    const barW = computed(() => Math.min(48, slotW.value * 0.6))
-    const areaH = computed(() => H - topPad - bottomPad)
+const dbDays = computed(() => trend.value.filter((t) => t.src === 'db').length)
 
-    const x = (i) => i * slotW.value + (slotW.value - barW.value) / 2
-    const barH = (v) => Math.max(2, (v / max.value) * areaH.value)
-    const y = (v) => topPad + (areaH.value - barH(v))
-
-    return { W, H, topPad, max, x, y, barH, barW }
-  },
-  render() {
-    const { W, H, max } = this
-    const gridLines = []
-    for (let i = 0; i <= 4; i++) {
-      const gy = this.topPad + (i * (H - this.topPad - 34)) / 4
-      gridLines.push(h('line', {
-        x1: 0, x2: W, y1: gy, y2: gy,
-        class: 'grid-line', key: 'g' + i
-      }))
-    }
-    return h('svg', { viewBox: `0 0 ${W} ${H}`, class: 'bar-chart', preserveAspectRatio: 'xMidYMid meet' }, [
-      ...gridLines,
-      h('text', { x: W - 4, y: 12, class: 'max-label' }, `max ${max}`),
-      ...this.data.map((d, i) => {
-        const bw = this.barW
-        const bh = this.barH(d.value)
-        const bx = this.x(i)
-        const by = this.y(d.value)
-        return h('g', { key: i }, [
-          h('rect', { x: bx, y: by, width: bw, height: bh, rx: 3, fill: this.color }),
-          h('title', {}, `${d.label}：${d.value}`),
-          h('text', { x: bx + bw / 2, y: by - 6, class: 'bar-value', 'text-anchor': 'middle' }, d.value),
-          h('text', { x: bx + bw / 2, y: H - 12, class: 'bar-label', 'text-anchor': 'middle' }, d.label)
-        ])
-      })
-    ])
-  }
-}
-
-const pvData = computed(() => daily.value.map(d => ({ label: shortDate(d.statdate), value: d.pv })))
-const uvData = computed(() => daily.value.map(d => ({ label: shortDate(d.statdate), value: d.uv })))
-
-const shortDate = (s) => String(s || '').slice(5)
-
-const formatNumber = (n) => {
+// ---------- 格式化 ----------
+function fmtNum(n) {
   const v = Number(n || 0)
-  return v >= 10000 ? (v / 10000).toFixed(1) + 'w' : String(v)
+  if (v >= 10000) return (v / 10000).toFixed(1) + 'w'
+  return String(v)
 }
-
-const maxPv = computed(() => Math.max(1, ...topPages.value.map(p => p.pv)))
-
-const barWidth = (pv) => {
-  return Math.max(2, (pv / maxPv.value) * 100) + '%'
+function fmtDur(s) {
+  const v = Math.round(Number(s) || 0)
+  if (v <= 0) return '—'
+  if (v < 60) return v + ' 秒'
+  const m = Math.floor(v / 60)
+  if (m < 60) return v % 60 ? `${m} 分 ${v % 60} 秒` : `${m} 分`
+  return `${Math.floor(m / 60)} 小时 ${m % 60} 分`
 }
+const shortDay = (s) => String(s || '').slice(5)
 
-const fetchData = async () => {
-  try {
-    const res = await getStatOverview(days.value)
-    const d = res.data || {}
-    const rawDaily = d.daily || []
-    daily.value = rawDaily.map(item => ({
-      statdate: String(item.statdate || item.statDate || ''),
-      pv: Number(item.pv || 0),
-      uv: Number(item.uv || 0)
-    }))
-    topPages.value = (d.topPages || []).map(item => ({
-      pagepath: String(item.pagepath || item.pagePath || ''),
-      pv: Number(item.pv || 0),
-      uv: Number(item.uv || 0)
-    }))
-    const total = d.total || {}
-    totalPv.value = Number(total.pv || 0)
-    totalUv.value = Number(total.uv || 0)
-  } catch (e) {
-    console.error('获取访问统计失败', e)
+const maxPv = computed(() => Math.max(1, ...pages.value.map((p) => p.pv)))
+const pctOf = (pv) => Math.round((Number(pv || 0) / maxPv.value) * 1000) / 10
+
+// ---------- 概览卡片 ----------
+const summaryCards = computed(() => [
+  { label: '浏览量 PV', value: fmtNum(summary.value.pv), hint: '不含爬虫与内网' },
+  { label: '独立访客 UV', value: fmtNum(summary.value.uv), hint: '按 IP 去重' },
+  { label: '会话数', value: fmtNum(summary.value.sessions), hint: '30 分钟无操作即新会话' },
+  { label: '平均停留', value: fmtDur(summary.value.avgDuration), hint: `${summary.value.durationSamples || 0} 次采样` },
+  { label: '跳出率', value: (summary.value.bounceRate || 0) + '%', hint: `人均 ${summary.value.pagesPerSession || 0} 页` },
+  { label: '今日实时', value: fmtNum(realtime.value.pv), hint: `UV ${realtime.value.uv || 0}` }
+])
+
+const healthAlert = computed(() => {
+  if (queue.value.enabled === false) return '埋点落盘已关闭（page-stat.enabled=false），统计不会产生新数据'
+  if (queue.value.consumerAlive === false) return '写盘消费者线程已停止，队列正在积压，请检查服务日志'
+  if ((queue.value.dropped || 0) > 0) return `队列已丢弃 ${queue.value.dropped} 条埋点（队列满）。数据不完整，建议排查磁盘写入`
+  if (health.value.truncated) return '区间内明细事件超过处理上限，报表已截断，请缩小时间范围'
+  if (queue.value.lastError) return '写盘链路最近出现过异常，详见「数据健康」'
+  return ''
+})
+
+// ---------- ECharts option 构造 ----------
+function cartesian(cats, seriesList, opts = {}) {
+  return {
+    color: PALETTE,
+    grid: { left: 8, right: 16, top: seriesList.length > 1 ? 34 : 16, bottom: 6, containLabel: true },
+    tooltip: { trigger: 'axis', axisPointer: { type: opts.pointer || 'shadow' } },
+    legend: seriesList.length > 1
+      ? {
+          top: 0,
+          right: 0,
+          icon: 'roundRect',
+          itemWidth: 10,
+          itemHeight: 10,
+          textStyle: { fontSize: 11, color: '#64748b' }
+        }
+      : { show: false },
+    xAxis: {
+      type: 'category',
+      data: cats,
+      boundaryGap: opts.boundaryGap !== false,
+      axisLine: { lineStyle: { color: '#e5e7eb' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#6b7280', fontSize: 11, hideOverlap: true }
+    },
+    yAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { color: '#f1f5f9' } },
+      axisLabel: { color: '#6b7280', fontSize: 11 }
+    },
+    series: seriesList
   }
 }
 
-onMounted(() => fetchData())
+function mkSeries(name, values, kind, color) {
+  if (kind === 'bar') {
+    return {
+      name,
+      type: 'bar',
+      barMaxWidth: 22,
+      itemStyle: { color, borderRadius: [3, 3, 0, 0] },
+      data: values
+    }
+  }
+  return {
+    name,
+    type: 'line',
+    smooth: true,
+    symbol: 'circle',
+    symbolSize: 5,
+    lineStyle: { width: 2, color },
+    itemStyle: { color },
+    areaStyle: kind === 'area' ? { color, opacity: 0.14 } : undefined,
+    data: values
+  }
+}
+
+function pieOption(list) {
+  return {
+    color: PALETTE,
+    tooltip: { trigger: 'item', formatter: '{b}<br/>{c}（{d}%）' },
+    legend: {
+      type: 'scroll',
+      bottom: 0,
+      icon: 'circle',
+      itemWidth: 8,
+      itemHeight: 8,
+      textStyle: { fontSize: 11, color: '#64748b' }
+    },
+    series: [
+      {
+        type: 'pie',
+        radius: ['42%', '68%'],
+        center: ['50%', '44%'],
+        avoidLabelOverlap: true,
+        itemStyle: { borderColor: '#fff', borderWidth: 2 },
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 12, fontWeight: 600 } },
+        data: list.map((d) => ({ name: d.name, value: d.value }))
+      }
+    ]
+  }
+}
+
+/** 统一的分类型图表：环形 / 柱状 / 折线 三选一 */
+function distOption(list, kind) {
+  if (kind === 'pie') return pieOption(list)
+  const cats = list.map((d) => d.name)
+  const vals = list.map((d) => d.value)
+  if (kind === 'line') {
+    return cartesian(cats, [mkSeries('数量', vals, 'area', PALETTE[0])], { boundaryGap: false })
+  }
+  return cartesian(cats, [mkSeries('数量', vals, 'bar', PALETTE[0])])
+}
+
+// 访问趋势
+const trendData = computed(() => (gran.value === 'day' ? trend.value : hourly.value))
+const trendOption = computed(() => {
+  const isHour = gran.value === 'hour'
+  const cats = trendData.value.map((d) => (isHour ? d.name : shortDay(d.date)))
+  const pv = trendData.value.map((d) => d.pv)
+  const uv = trendData.value.map((d) => d.uv)
+  return cartesian(
+    cats,
+    [
+      mkSeries('PV', pv, trendType.value, PALETTE[0]),
+      mkSeries('UV', uv, trendType.value === 'bar' ? 'bar' : 'line', PALETTE[1])
+    ],
+    { boundaryGap: trendType.value === 'bar', pointer: trendType.value === 'bar' ? 'shadow' : 'line' }
+  )
+})
+
+const hourOption = computed(() => {
+  const cats = hourly.value.map((d) => d.name)
+  return cartesian(cats, [
+    mkSeries('PV', hourly.value.map((d) => d.pv), hourType.value, PALETTE[0]),
+    mkSeries('UV', hourly.value.map((d) => d.uv), hourType.value, PALETTE[1])
+  ])
+})
+
+const sourceOption = computed(() => distOption(sources.value, sourceType.value))
+const profileList = computed(() => report.value[profileMetric.value] || [])
+const profileOption = computed(() => distOption(profileList.value, profileType.value))
+const durOption = computed(() => distOption(durations.value, durType.value))
+
+const pageOption = computed(() => {
+  if (pageType.value === 'pie') {
+    return pieOption(pages.value.slice(0, 12).map((p) => ({ name: p.path, value: p.pv })))
+  }
+  // 横向柱状：y 轴类目从下往上排，所以反转一次让 PV 最高的在最上面
+  const list = pages.value.slice(0, 15)
+  const cats = list.map((p) => p.path).reverse()
+  const vals = list.map((p) => p.pv).reverse()
+  return {
+    color: PALETTE,
+    grid: { left: 8, right: 48, top: 10, bottom: 6, containLabel: true },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    xAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { color: '#f1f5f9' } },
+      axisLabel: { color: '#6b7280', fontSize: 11 }
+    },
+    yAxis: {
+      type: 'category',
+      data: cats,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: { color: '#4b5563', fontSize: 11, width: 180, overflow: 'truncate' }
+    },
+    series: [
+      {
+        type: 'bar',
+        barMaxWidth: 14,
+        itemStyle: { color: PALETTE[0], borderRadius: [0, 3, 3, 0] },
+        label: { show: true, position: 'right', fontSize: 10, color: '#6b7280' },
+        data: vals
+      }
+    ]
+  }
+})
+
+// ---------- 数据加载 ----------
+async function reload() {
+  loading.value = true
+  try {
+    const res = await getStatReport(days.value)
+    report.value = res.data || {}
+  } catch (e) {
+    console.error('获取访问报表失败', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(reload)
 </script>
 
 <style scoped>
-.visit-stat { padding: 0; }
+.visit-stat {
+  padding: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.gen-at {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+.alert-row {
+  margin-bottom: 12px;
+}
+
+.card-row {
+  margin-bottom: 12px;
+}
 
 .stat-card {
   background: #fff;
   border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+  padding: 16px 18px;
   border: 1px solid #e8f5e9;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
   height: 100%;
+  margin-bottom: 12px;
+}
+.stat-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: #2e7d32;
+  line-height: 1.2;
+}
+.stat-label {
+  font-size: 13px;
+  color: #8aa093;
+  margin-top: 4px;
+}
+.stat-hint {
+  font-size: 11px;
+  color: #b6c6bb;
+  margin-top: 2px;
+}
+
+.chart-card {
+  margin-bottom: 12px;
+}
+.card-header {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-.stat-value { font-size: 28px; font-weight: 800; color: #2e7d32; }
-.stat-label { font-size: 13px; color: #8aa093; margin-top: 4px; }
-.range-card { flex-direction: row; align-items: center; }
-
-.chart-card { margin-bottom: 16px; }
-.card-header { display: flex; justify-content: space-between; align-items: center; }
-.card-hint { font-size: 12px; color: #a3b8ab; font-weight: 400; }
-
-.bar-chart { width: 100%; height: auto; display: block; }
-.grid-line { stroke: #eef2ef; stroke-width: 1; }
-.max-label { font-size: 11px; fill: #b8c8bd; text-anchor: end; }
-.bar-value { font-size: 11px; fill: #6b7f73; }
-.bar-label { font-size: 11px; fill: #9aaca0; }
-
-.top-list { display: flex; flex-direction: column; gap: 10px; }
-.top-item { display: flex; align-items: center; gap: 12px; }
-.top-rank {
-  width: 24px; height: 24px; border-radius: 6px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700; color: #8aa093; background: #f0f4f1;
+.card-hint {
+  font-size: 12px;
+  color: #a3b8ab;
+  font-weight: 400;
 }
-.top-rank.top-3 { color: #fff; background: #67c23a; }
-.top-path {
-  width: 180px; flex-shrink: 0; font-size: 13px; color: #4b5f53;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.ctrl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.top-bar-wrap { flex: 1; height: 14px; background: #f0f4f1; border-radius: 7px; overflow: hidden; }
-.top-bar { height: 100%; background: linear-gradient(90deg, #67c23a, #409eff); border-radius: 7px; transition: width 0.4s; }
-.top-pv { width: 70px; text-align: right; flex-shrink: 0; font-size: 12px; color: #6b7f73; font-weight: 600; }
 
-@media (max-width: 640px) {
-  .top-path { width: 100px; }
+.page-table {
+  margin-top: 8px;
+}
+
+.files {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.file-tag {
+  font-family: Consolas, Monaco, monospace;
+}
+.err {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #f56c6c;
+  word-break: break-all;
+}
+.bad {
+  color: #f56c6c;
+  font-weight: 700;
 }
 </style>

@@ -28,3 +28,17 @@ mybatis:
 # custom config
 file:
   attachment: data/
+
+# 访问明细（埋点）落盘
+#
+# 埋点接口只做「收下 + 入队」就返回，写文件由单消费者线程批量完成。
+# queue-capacity 故意做小：它只是削峰缓冲，不是数据仓库。真积压到上千条，
+# 说明磁盘/文件系统已经出问题，此时丢弃并计数（报表「数据健康」可见）比堆积更安全。
+# ip-mode: full（明细里保留完整 IP，便于核对 CDN 的 XFF 链路）| mask（只留网段，隐私优先）
+page-stat:
+  enabled: true
+  log-dir: data/page-stat
+  queue-capacity: 2000
+  batch-size: 500
+  retain-days: 90
+  ip-mode: full

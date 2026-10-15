@@ -120,6 +120,42 @@ public class AdminApiController {
     }
 
     /**
+     * 多维访问报表（明细口径：读 JSONL 明细聚合，缺失区间自动回退 DB 汇总）。
+     *
+     * <p>返回 summary / trend / hourly / pages / sources / devices / browsers /
+     * systems / durations / health / queue / files / realtime，
+     * 同时保留旧字段 daily / topPages / total 以兼容既有前端。
+     *
+     * 参数：days（最近 N 天，默认 14，1~90）；也可直接用 start/end 指定区间（yyyy-MM-dd）
+     */
+    @GetMapping("/stat/report")
+    @ResponseBody
+    public Result statReport(@RequestParam(value = "days", required = false, defaultValue = "14") Integer days,
+                             @RequestParam(value = "start", required = false) String start,
+                             @RequestParam(value = "end", required = false) String end) {
+        String endDate = (end == null || end.trim().isEmpty())
+                ? java.time.LocalDate.now().toString() : end.trim();
+        String startDate;
+        if (start != null && !start.trim().isEmpty()) {
+            startDate = start.trim();
+        } else {
+            int d = (days == null || days < 1) ? 14 : Math.min(days, 90);
+            startDate = java.time.LocalDate.now().minusDays(d - 1L).toString();
+            endDate = java.time.LocalDate.now().toString();
+        }
+        return ResultGenerator.genSuccessResult(visitStatService.getStatReport(startDate, endDate));
+    }
+
+    /**
+     * 今日实时概览（内存计数，不等 5 分钟聚合）
+     */
+    @GetMapping("/stat/realtime")
+    @ResponseBody
+    public Result statRealtime() {
+        return ResultGenerator.genSuccessResult(visitStatService.getRealtime());
+    }
+
+    /**
      * 获取当前登录用户信息
      */
     @GetMapping("/profile")
