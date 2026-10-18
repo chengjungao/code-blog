@@ -257,10 +257,17 @@ public class PageStatLogServiceImpl implements PageStatLogService {
                 continue;
             }
             writeLine(e);
-            if (e.isBot()) {
-                bots.incrementAndGet();
-            } else if (e.isInternal()) {
+            // 内网优先判：预渲染来自回环地址、UA 又是 HeadlessChrome，
+            // 两个标记会同时成立。若先按 bot 归类，每天几十次预渲染就会冒充成「爬虫抓取」。
+            if (e.isInternal()) {
                 internals.incrementAndGet();
+            } else if (e.isBot()) {
+                bots.incrementAndGet();
+            } else if ("leave".equals(e.getType())) {
+                // 停留事件只进明细，不是一次页面浏览。
+                // 漏这一步的代价实测过：切后台/关页面都会各发一次 leave，
+                // tb_page_stat 的 PV 会比明细多出 30%~80%（10-18 实测 DB 44 vs 明细 23），
+                // 于是「DB 兜底的老日期」和「明细口径的新日期」永远对不上。
             } else {
                 toAggregate.add(e);
             }
@@ -287,7 +294,16 @@ public class PageStatLogServiceImpl implements PageStatLogService {
     private void enrich(PageStatEvent e) {
         String ua = clip(e.getUa(), MAX_UA);
         e.setUa(ua);
-        e.setBot(UserAgentParser.isBot(ua));
+        // 标识与判定同源：能把「是不是爬虫」和「是哪个爬虫」一次说清，不会出现判定与标识打架
+        String botName = UserAgentParser.botName(ua);
+        e.setBot(botName != null);
+        if (botName != null) {
+            e.setBotName(botName);
+            e.setBotKind(UserAgentParser.botKind(ua));
+        } else {
+            e.setBotName(null);
+            e.setBotKind(null);
+        }
         e.setBrowser(UserAgentParser.browser(ua));
         e.setOs(UserAgentParser.os(ua));
         e.setDevice(UserAgentParser.device(ua));

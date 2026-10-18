@@ -33,6 +33,36 @@
         order by stat_date asc
     </select>
 
+    <!--
+      每日汇总（剔除预渲染批次）。
+
+      识别特征：预渲染是「一次渲染 = 一串 INSERT 在同一秒内落库」，真人不可能在同一秒
+      打开几十个页面。实测每日 02:0x 这一批有 36~45 行，正好等于「已发布文章数 + 5 个静态页」。
+      处理方式：每行扣掉 1 次 PV（渲染一次 = 1 次假 PV），行本身保留，不删数据。
+
+      UV 用 max(uv) 而不是 sum(uv)：tb_page_stat 的 uv 是「每个 page_path 各自去重」，
+      按天求和会把同一个访客在每个页面上各算一次，实测能虚高 5~10 倍（UV 甚至大于 PV）。
+      max(uv) 是同一份数据里能拿到的最接近「当日去重访客」的下界。
+    -->
+    <select id="selectDailySummaryClean" resultType="map">
+        with batch as (
+            select stat_date, create_time
+            from tb_page_stat
+            where stat_date &gt;= #{startDate} and stat_date &lt;= #{endDate}
+            group by stat_date, create_time
+            having count(*) &gt;= #{batchRows}
+        )
+        select t.stat_date as statdate,
+               sum(case when b.create_time is null then t.pv else greatest(t.pv - 1, 0) end) as pv,
+               max(t.uv) as uv,
+               sum(case when b.create_time is null then 0 else 1 end) as removedrows
+        from tb_page_stat t
+        left join batch b on b.stat_date = t.stat_date and b.create_time = t.create_time
+        where t.stat_date &gt;= #{startDate} and t.stat_date &lt;= #{endDate}
+        group by t.stat_date
+        order by t.stat_date asc
+    </select>
+
     <!-- TOP 页面排行 -->
     <select id="selectTopPages" resultType="map">
         select page_path as pagepath, sum(pv) as pv, sum(uv) as uv

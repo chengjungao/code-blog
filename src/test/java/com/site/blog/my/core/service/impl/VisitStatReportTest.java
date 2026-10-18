@@ -9,8 +9,11 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +59,10 @@ class VisitStatReportTest {
         row.put("statdate", DAY3);
         row.put("pv", 5);
         row.put("uv", 3);
+        row.put("removedrows", 0);
         dbRows.add(row);
+        Mockito.when(mapper.selectDailySummaryClean(Mockito.anyString(), Mockito.anyString(), Mockito.anyInt()))
+                .thenReturn(dbRows);
         Mockito.when(mapper.selectDailySummary(Mockito.anyString(), Mockito.anyString())).thenReturn(dbRows);
 
         svc = new VisitStatServiceImpl();
@@ -79,6 +85,13 @@ class VisitStatReportTest {
         ev.setDur(dur);
         ev.setSt(day + " " + hour + ":00:00");
         ev.setUa("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/141.0.0.0 Safari/537.36");
+        return ev;
+    }
+
+    /** 造一条爬虫事件：UA 是唯一区分点，enrich 会据此打上 bot / botName / botKind */
+    private PageStatEvent bot(String day, String hour, String path, String ip, String ua) {
+        PageStatEvent ev = e(day, hour, "pv", path, ip, "", "", false, "", null);
+        ev.setUa(ua);
         return ev;
     }
 
@@ -195,6 +208,8 @@ class VisitStatReportTest {
         assertEquals(2L, health.get("leaveEvents"));
         assertEquals(2, health.get("logDays"), "只有 DAY1/DAY2 有明细");
         assertEquals(1, health.get("dbFallbackDays"), "DAY3 走 DB 回退");
+        assertEquals(0, health.get("removedRenderRows"), "该天没有预渲染批次，不该扣任何行");
+        assertEquals(Boolean.TRUE, trend.get(2).get("uvApprox"), "回退天的 UV 只是下界，必须标注");
 
         // ---- 兼容旧字段 ----
         assertEquals(3, list(r, "daily").size());
@@ -253,6 +268,11 @@ class VisitStatReportTest {
         assertEquals(24, list(r, "hourly").size());
         assertEquals(6, list(r, "durations").size());
         assertTrue(list(r, "pages").isEmpty());
+        // 爬虫区块即使在无数据时也必须存在，前端不能因为字段缺失而报错
+        Map<String, Object> b = (Map<String, Object>) r.get("bots");
+        assertEquals(0L, b.get("pv"));
+        assertEquals(0.0, b.get("ratio"), "没有人也没有机器时不能除零");
+        assertEquals(3, list(b, "trend").size());
     }
 
     @Test
@@ -269,5 +289,110 @@ class VisitStatReportTest {
         Map<String, Object> range = (Map<String, Object>) r.get("range");
         assertEquals(DAY1, range.get("start"));
         assertEquals(DAY3, range.get("end"));
+    }
+
+    /**
+     * 爬虫要「能看见」但不能「混进人的数字」。这条测试同时守住两件事：
+     * 标识确实落进了明细并聚合得出来；summary 的 PV/UV 一个字节都不受爬虫影响。
+     */
+    /**
+     * 预渲染请求同时满足两个标记：回环 IP（internal）与 HeadlessChrome UA（bot）。
+     * 必须归 internal —— 否则每天几十次预渲染会假冒成「爬虫抓取」，把爬虫统计污染成噪音。
+     */
+    @Test
+    void 内网预渲染不算爬虫() {
+        PageStatEvent ev = e(DAY1, "10", "pv", "/notes", "127.0.0.1", "", "", false, "", null);
+        ev.setUa("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                + "HeadlessChrome/140.0.0.0 Safari/537.36");
+        ev.setInternal(true);
+        feed(ev);
+
+        Map<String, Object> r = svc.getStatReport(DAY1, DAY1);
+        assertEquals(0L, ((Map<String, Object>) r.get("bots")).get("pv"), "预渲染不能算成爬虫");
+        assertEquals(0L, ((Map<String, Object>) r.get("summary")).get("pvLog"), "也不能算成人");
+        Map<String, Object> h = (Map<String, Object>) r.get("health");
+        assertEquals(1L, h.get("internal"));
+        assertEquals(0L, h.get("botPv"));
+    }
+
+    /**
+     * 1.4.9 当天及更早的明细只写了 bot 布尔值，没有 botName/botKind。
+     * 明细里保留了 UA，报表读的时候必须能现算出标识，否则历史数据全塌成「未知爬虫」。
+     */
+    @Test
+    void 老明细缺标识时用UA回填() throws Exception {
+        String legacyDay = "2026-10-05";
+        String line = "{\"type\":\"pv\",\"path\":\"/notes\",\"ip\":\"66.249.66.1\","
+                + "\"st\":\"" + legacyDay + " 11:00:00\",\"bot\":true,"
+                + "\"ua\":\"Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)\"}";
+        Files.write(tmp.resolve("stat-" + legacyDay + ".jsonl"),
+                Collections.singletonList(line), StandardCharsets.UTF_8);
+
+        Map<String, Object> r = svc.getStatReport(legacyDay, legacyDay);
+        Map<String, Object> b = (Map<String, Object>) r.get("bots");
+        assertEquals(1L, b.get("pv"));
+        List<Map<String, Object>> names = (List<Map<String, Object>>) b.get("names");
+        assertEquals(1L, findValue(names, "name", "Googlebot", "value"),
+                "老的 bot 记录必须从 UA 现算出标识，不能落到「未知爬虫」");
+        assertEquals("search", findValue(names, "name", "Googlebot", "kind"));
+    }
+
+    @Test
+    void 爬虫单独统计且不污染人的口径() {
+        String googlebot = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+        String gptbot = "Mozilla/5.0 AppleWebKit/537.36; compatible; GPTBot/1.2";
+
+        feed(
+                // 一个真人访问
+                e(DAY1, "10", "pv", "/notes", "1.1.1.1", "A", "S1", true, "", null),
+                // Googlebot 会执行 JS，所以它真的会打到埋点上来
+                bot(DAY1, "11", "/notes", "66.249.66.1", googlebot),
+                bot(DAY1, "11", "/life", "66.249.66.1", googlebot),
+                // AI 抓取
+                bot(DAY2, "12", "/notes/1", "20.191.45.9", gptbot),
+                // 连 UA 都不发的，也要被标识出来而不是当成真人
+                bot(DAY2, "13", "/notes", "9.9.9.9", ""));
+
+        Map<String, Object> r = svc.getStatReport(DAY1, DAY3);
+
+        // ---- 人的口径不受影响 ----
+        Map<String, Object> s = (Map<String, Object>) r.get("summary");
+        assertEquals(1L, s.get("pvLog"), "爬虫不能进人的 PV");
+        assertEquals(1, s.get("uv"), "爬虫 IP 不能进人的 UV");
+        assertEquals(4L, s.get("botPv"), "4 次爬虫 PV 单独记账");
+        assertEquals(1L, list(r, "trend").get(0).get("pv"), "趋势图里 DAY1 仍然只有人的 1 次");
+
+        // ---- 爬虫自己的口径 ----
+        Map<String, Object> b = (Map<String, Object>) r.get("bots");
+        assertEquals(4L, b.get("pv"));
+        assertEquals(3, b.get("uv"), "同一个 Googlebot IP 抓两次只算一个");
+        assertEquals(80.0, b.get("ratio"), "可见总量 1+4=5，机器占 80%");
+
+        List<Map<String, Object>> names = (List<Map<String, Object>>) b.get("names");
+        assertEquals(2L, findValue(names, "name", "Googlebot", "value"));
+        assertEquals("search", findValue(names, "name", "Googlebot", "kind"), "表格要能直接显示类别");
+        assertEquals(1L, findValue(names, "name", "GPTBot", "value"));
+        assertEquals("ai", findValue(names, "name", "GPTBot", "kind"));
+        assertEquals(1L, findValue(names, "name", "（空 UA）", "value"));
+        assertEquals("empty", findValue(names, "name", "（空 UA）", "kind"));
+
+        List<Map<String, Object>> kinds = (List<Map<String, Object>>) b.get("kinds");
+        assertEquals(2L, findValue(kinds, "name", "search", "value"));
+        assertEquals(1L, findValue(kinds, "name", "ai", "value"));
+        assertEquals(1L, findValue(kinds, "name", "empty", "value"));
+
+        List<Map<String, Object>> botPages = (List<Map<String, Object>>) b.get("pages");
+        assertEquals(2L, findValue(botPages, "name", "/notes", "value"), "Googlebot 与空 UA 各抓一次");
+
+        // 趋势按天补齐，缺失的天补 0 —— 否则折线会「跳过」某天，看起来像没被抓
+        List<Map<String, Object>> botTrend = (List<Map<String, Object>>) b.get("trend");
+        assertEquals(3, botTrend.size());
+        assertEquals(2L, botTrend.get(0).get("pv"));
+        assertEquals(2L, botTrend.get(1).get("pv"));
+        assertEquals(0L, botTrend.get(2).get("pv"));
+
+        // health 保留事件级计数（含 leave），与 PV 级口径分开，别混用
+        Map<String, Object> h = (Map<String, Object>) r.get("health");
+        assertEquals(4L, h.get("botPv"));
     }
 }

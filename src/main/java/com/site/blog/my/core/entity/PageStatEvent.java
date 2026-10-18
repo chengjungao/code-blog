@@ -6,7 +6,8 @@ package com.site.blog.my.core.entity;
  * <p>字段分两组：
  * <ul>
  *   <li>前端上报（浏览器侧）：type / path / title / ref / dur / vid / sid / scr / lang / ts</li>
- *   <li>服务端补全（可信侧）：st / ip / ipSrc / xff / ua / browser / os / device / internal</li>
+ *   <li>服务端补全（可信侧）：st / ip / ipSrc / xff / ua / browser / os / device / internal /
+ *       bot / botName / botKind</li>
  * </ul>
  *
  * <p>时间段（按小时统计）以服务端时间 {@code st} 为准，避免客户端时钟不可信。
@@ -67,8 +68,14 @@ public class PageStatEvent {
     /** 内网/本机来源（预渲染、内网直连）：写入明细但不计入报表 */
     private boolean internal;
 
-    /** 爬虫/自动化（Googlebot 会执行 JS，只能靠 UA 拦）：写入明细但不计入报表 */
+    /** 爬虫/自动化（Googlebot 会执行 JS，只能靠 UA 拦）：写入明细但不计入人的报表口径 */
     private boolean bot;
+
+    /** 爬虫标识（Googlebot / GPTBot / Python-requests…），非爬虫为 null */
+    private String botName;
+
+    /** 爬虫类别（search / ai / seo / monitor / social / script / automation / scanner / empty / other） */
+    private String botKind;
 
     /** 是否为本次会话的落地页（ref 只在这一条上有意义） */
     private boolean entry;
@@ -231,6 +238,22 @@ public class PageStatEvent {
 
     public void setBot(boolean bot) {
         this.bot = bot;
+    }
+
+    public String getBotName() {
+        return botName;
+    }
+
+    public void setBotName(String botName) {
+        this.botName = botName;
+    }
+
+    public String getBotKind() {
+        return botKind;
+    }
+
+    public void setBotKind(String botKind) {
+        this.botKind = botKind;
     }
 
     public boolean isEntry() {

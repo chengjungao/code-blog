@@ -47,7 +47,7 @@
               <el-radio-button value="area">面积</el-radio-button>
               <el-radio-button value="bar">柱状</el-radio-button>
             </el-radio-group>
-            <span v-if="dbDays" class="card-hint">{{ dbDays }} 天为 DB 汇总口径（明细上线前）</span>
+            <span v-if="dbDays" class="card-hint">{{ dbDays }} 天为 DB 汇总口径（明细上线前，已剔除每日预渲染批次；UV 仅为下界）</span>
           </div>
         </div>
       </template>
@@ -169,6 +169,63 @@
       </el-col>
     </el-row>
 
+    <!-- 爬虫与自动化：与人的口径完全隔离，只做对照，不混进 PV -->
+    <el-card shadow="never" class="chart-card">
+      <template #header>
+        <div class="card-header">
+          <span>爬虫与自动化</span>
+          <div class="ctrl">
+            <el-radio-group v-model="botMetric" size="small">
+              <el-radio-button value="names">爬虫标识</el-radio-button>
+              <el-radio-button value="kinds">类别</el-radio-button>
+              <el-radio-button value="pages">被抓页面</el-radio-button>
+              <el-radio-button value="trend">按天趋势</el-radio-button>
+            </el-radio-group>
+            <el-radio-group v-model="botType" size="small">
+              <el-radio-button value="bar">柱状</el-radio-button>
+              <el-radio-button value="pie">环形</el-radio-button>
+              <el-radio-button value="line">折线</el-radio-button>
+            </el-radio-group>
+          </div>
+        </div>
+      </template>
+      <div class="bot-summary">
+        <div class="bot-num">{{ bots.pv || 0 }}<span class="bot-unit">PV</span></div>
+        <div class="bot-meta">
+          <span>占可见流量 <b>{{ bots.ratio || 0 }}%</b></span>
+          <span>{{ (bots.names || []).length }} 种爬虫</span>
+          <span>{{ bots.uv || 0 }} 个来源 IP</span>
+        </div>
+      </div>
+      <BaseChart v-if="botList.length" :option="botOption" :height="260" />
+      <el-empty v-else description="区间内没有捕捉到爬虫" :image-size="70" />
+      <el-table
+        v-if="(bots.names || []).length"
+        :data="bots.names.slice(0, 10)"
+        size="small"
+        class="page-table"
+      >
+        <el-table-column label="爬虫标识" prop="name" min-width="180" />
+        <el-table-column label="类别" width="120">
+          <template #default="{ row }">
+            <el-tag size="small" type="info" effect="plain">{{ botKindLabel(row.kind) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="PV" width="90" align="right" prop="value" />
+        <el-table-column label="占比" min-width="170">
+          <template #default="{ row }">
+            <el-progress :percentage="row.pct" :stroke-width="8" />
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="bot-note">
+        只统计<strong>会执行 JS 的爬虫</strong>（Googlebot、Bingbot、无头浏览器等）——它们会真的跑起埋点，
+        所以能被这里看见。不跑 JS 的爬虫（Baiduspider、扫描器、图片抓取）根本不会请求本接口，
+        这部分只在 CDN / nginx 访问日志里可见。因此这里的数字是<strong>可见爬虫的下限</strong>，
+        不能直接等同于 CDN 账单上的差额。
+      </div>
+    </el-card>
+
     <!-- 数据健康 -->
     <el-card shadow="never" class="chart-card">
       <template #header>
@@ -244,6 +301,22 @@ const pageType = ref('bar')
 const profileMetric = ref('devices')
 const profileType = ref('pie')
 const durType = ref('bar')
+const botMetric = ref('names')
+const botType = ref('bar')
+
+/** 后端输出类别 code，展示名统一在前端映射，改文案不用动 Java */
+const BOT_KINDS = {
+  search: '搜索引擎',
+  ai: 'AI 抓取',
+  seo: 'SEO/分析',
+  monitor: '可用性监控',
+  social: '社交预览',
+  script: '脚本/客户端',
+  automation: '无头浏览器',
+  scanner: '安全扫描',
+  empty: '空 UA',
+  other: '其他'
+}
 
 const trend = computed(() => report.value.trend || [])
 const hourly = computed(() => report.value.hourly || [])
@@ -251,6 +324,7 @@ const pages = computed(() => report.value.pages || [])
 const sources = computed(() => report.value.sources || [])
 const durations = computed(() => report.value.durations || [])
 const summary = computed(() => report.value.summary || {})
+const bots = computed(() => report.value.bots || {})
 const health = computed(() => report.value.health || {})
 const queue = computed(() => report.value.queue || {})
 const realtime = computed(() => report.value.realtime || {})
@@ -423,6 +497,21 @@ const profileList = computed(() => report.value[profileMetric.value] || [])
 const profileOption = computed(() => distOption(profileList.value, profileType.value))
 const durOption = computed(() => distOption(durations.value, durType.value))
 
+// 爬虫：names / kinds / pages 都是 {name,value,pct} 同形结构，trend 需转成同样的形状
+const botKindLabel = (k) => BOT_KINDS[k] || k || '其他'
+const botList = computed(() => {
+  const b = bots.value
+  if (botMetric.value === 'trend') {
+    return (b.trend || []).map((t) => ({ name: shortDay(t.date), value: t.pv }))
+  }
+  const list = b[botMetric.value] || []
+  if (botMetric.value === 'kinds') {
+    return list.slice(0, 12).map((d) => ({ ...d, name: botKindLabel(d.name) }))
+  }
+  return list.slice(0, 12)
+})
+const botOption = computed(() => distOption(botList.value, botType.value))
+
 const pageOption = computed(() => {
   if (pageType.value === 'pie') {
     return pieOption(pages.value.slice(0, 12).map((p) => ({ name: p.path, value: p.pv })))
@@ -551,6 +640,50 @@ onMounted(reload)
 
 .page-table {
   margin-top: 8px;
+}
+
+/* 爬虫卡片：用琥珀色与「人的数据」的绿色系区分，避免看串 */
+.bot-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.bot-num {
+  font-size: 26px;
+  font-weight: 800;
+  color: #b45309;
+  line-height: 1;
+}
+.bot-unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: #d97706;
+  margin-left: 4px;
+}
+.bot-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #94a3b8;
+}
+.bot-meta b {
+  color: #b45309;
+}
+.bot-note {
+  margin-top: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.75;
+  color: #78716c;
+  background: #fffbeb;
+  border-left: 3px solid #fcd34d;
+  border-radius: 0 6px 6px 0;
+}
+.bot-note strong {
+  color: #b45309;
 }
 
 .files {

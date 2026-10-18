@@ -6,6 +6,7 @@ import com.site.blog.my.core.entity.PageStatEvent;
 import com.site.blog.my.core.service.PageStatCounters;
 import com.site.blog.my.core.service.PageStatLogService;
 import com.site.blog.my.core.service.VisitStatService;
+import com.site.blog.my.core.util.UserAgentParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +54,15 @@ public class VisitStatServiceImpl implements VisitStatService {
     private static final long REPORT_TTL_MS = 30000L;
     /** 单个维度集合最多容纳的身份数，防止长区间把内存吃满 */
     private static final int MAX_KEYS = 200000;
+
+    /**
+     * 判定「同一秒内批量写入」的行数下限。
+     *
+     * <p>用来在 DB 兜底时认出每日预渲染批次：1.4.9 之前，每天 02:00 的全量预渲染会在
+     * 同一秒里把全站每个页面各写 1 次 PV（实测 36~45 行，占当日 PV 的 85%~95%）。
+     * 这个站日均真人 PV 只有几十，真人不可能在同一秒打开 10 个页面，10 是安全的下限。
+     */
+    private static final int RENDER_BATCH_ROWS = 10;
 
     @Autowired
     private PageStatMapper pageStatMapper;
@@ -163,21 +173,47 @@ public class VisitStatServiceImpl implements VisitStatService {
      *
      * <p>只有「明细没有这天数据」时才回退，避免把明细与 DB 两套口径混在一张图里。
      * 回退点会被标成 {@code src=db}，前端据此把「粗略口径」与「明细口径」区分显示。
+     *
+     * <p>回退时做两件口径对齐（否则历史曲线与明细曲线拼在一起会像是流量腰斩）：
+     * <ol>
+     *   <li><b>扣掉每日预渲染批次</b>：1.4.9 之前每天 02:00 的全量预渲染被旧口径当成真人
+     *       PV 记进了 tb_page_stat，占当日 85%~95%。</li>
+     *   <li><b>UV 改取 max(uv)</b>：DB 里的 uv 是按 page_path 分别去重的，按天求和
+     *       会把同一个访客在每个页面各算一次（能虚高到 UV &gt; PV）。</li>
+     * </ol>
      */
     private void applyDbFallback(Map<String, Object> report, LocalDate from, LocalDate to) {
         Map<String, Map<String, Object>> dbRows = new HashMap<String, Map<String, Object>>();
+        int removedRenderRows = 0;
         try {
-            List<Map<String, Object>> rows = pageStatMapper.selectDailySummary(from.toString(), to.toString());
+            List<Map<String, Object>> rows = pageStatMapper.selectDailySummaryClean(
+                    from.toString(), to.toString(), RENDER_BATCH_ROWS);
             if (rows != null) {
                 for (Map<String, Object> r : rows) {
                     String d = asDate(r.get("statdate"));
                     if (d != null) {
                         dbRows.put(d, r);
+                        removedRenderRows += (int) asLong(r.get("removedrows"));
                     }
                 }
             }
         } catch (Exception e) {
-            LOG.warn("[stat] DB 汇总回退失败：{}", e.toString());
+            // CTE 需要 MySQL 8；万一连的是老库，退回原口径也比整块报表空着强
+            LOG.warn("[stat] 剔除预渲染批次的汇总查询失败，退回原始口径：{}", e.toString());
+            try {
+                List<Map<String, Object>> rows = pageStatMapper.selectDailySummary(
+                        from.toString(), to.toString());
+                if (rows != null) {
+                    for (Map<String, Object> r : rows) {
+                        String d = asDate(r.get("statdate"));
+                        if (d != null) {
+                            dbRows.put(d, r);
+                        }
+                    }
+                }
+            } catch (Exception ex) {
+                LOG.warn("[stat] DB 汇总回退失败：{}", ex.toString());
+            }
         }
 
         List<Map<String, Object>> trend = castList(report.get("trend"));
@@ -199,6 +235,8 @@ public class VisitStatServiceImpl implements VisitStatService {
             t.put("sessions", 0);
             t.put("avgDuration", 0);
             t.put("src", "db");
+            // 回退天的 UV 是「各页面去重的最大值」，天然只能取下界，标出来免得被当成精确值
+            t.put("uvApprox", Boolean.TRUE);
             dbPv += pv;
             dbUv += uv;
             dbDays++;
@@ -234,6 +272,8 @@ public class VisitStatServiceImpl implements VisitStatService {
         Map<String, Object> health = (Map<String, Object>) report.get("health");
         health.put("dbFallbackDays", dbDays);
         health.put("dbFallbackPv", dbPv);
+        // 被剔除的预渲染行数：报表「数据健康」直接展示，让「扣了多少」是可核对的，而不是魔法数字
+        health.put("removedRenderRows", removedRenderRows);
     }
 
     private static String asDate(Object o) {
@@ -323,6 +363,18 @@ public class VisitStatServiceImpl implements VisitStatService {
         private final Map<String, Integer> sidPages = new HashMap<String, Integer>();
         private final Set<String> allIps = new HashSet<String>();
 
+        // ---- 爬虫专属口径：与人的口径完全隔离，只累计不交叉，互不影响 ----
+        private final Map<String, DayAgg> botDays = new TreeMap<String, DayAgg>();
+        private final Map<String, PathAgg> botPaths = new HashMap<String, PathAgg>();
+        /** 爬虫标识 → PV，报表「谁在抓」 */
+        private final Map<String, Long> botNames = new HashMap<String, Long>();
+        /** 爬虫类别 → PV，报表「抓取压力来自哪一类」 */
+        private final Map<String, Long> botKinds = new HashMap<String, Long>();
+        /** 爬虫标识 → 类别，供表格直接展示「Googlebot 属于搜索引擎」 */
+        private final Map<String, String> botNameKind = new HashMap<String, String>();
+        private final Set<String> botIps = new HashSet<String>();
+        private long botPv;
+
         private long events;
         private long pvEvents;
         private long leaveEvents;
@@ -352,13 +404,17 @@ public class VisitStatServiceImpl implements VisitStatService {
                 truncated = true;
                 return;
             }
-            // 爬虫 / 内网流量：明细文件里保留（可核对），但报表口径剔除
-            if (e.isBot()) {
-                botEvents++;
-                return;
-            }
+            // 内网优先判：预渲染请求同时满足「回环 IP」与「HeadlessChrome UA」，
+            // 若先按爬虫归类，每天几十次预渲染会假冒成机器抓取，把「爬虫统计」直接污染掉。
             if (e.isInternal()) {
                 internalEvents++;
+                return;
+            }
+            // 爬虫：明细文件里保留（可核对），不进人的报表口径；
+            // 但另立一份累计，供「爬虫与自动化」卡片对照——统计它，但不混进 PV。
+            if (e.isBot()) {
+                botEvents++;
+                accumulateBot(e);
                 return;
             }
             String day = dayOf(e);
@@ -459,6 +515,59 @@ public class VisitStatServiceImpl implements VisitStatService {
             }
         }
 
+        /**
+         * 爬虫单独累计。<b>只算 PV 事件</b>：爬虫的 leave 事件没有停留语义，
+         * 混进来会污染「停留时长」的分母（人的那条曲线已在上游分流，这里互不干扰）。
+         */
+        private void accumulateBot(PageStatEvent e) {
+            if ("leave".equals(e.getType())) {
+                return;
+            }
+            String day = dayOf(e);
+            if (day == null) {
+                return;
+            }
+            String ip = nz(e.getIp());
+            String path = e.getPath() == null ? "/" : e.getPath();
+            botPv++;
+            if (botIps.size() < MAX_KEYS) {
+                botIps.add(ip);
+            }
+            DayAgg da = botDays.get(day);
+            if (da == null) {
+                da = new DayAgg();
+                botDays.put(day, da);
+            }
+            da.pv++;
+            if (da.ips.size() < MAX_KEYS) {
+                da.ips.add(ip);
+            }
+            PathAgg pa = botPaths.get(path);
+            if (pa == null) {
+                pa = new PathAgg();
+                botPaths.put(path, pa);
+            }
+            pa.pv++;
+            if (pa.ips.size() < MAX_KEYS) {
+                pa.ips.add(ip);
+            }
+            // 老明细（1.4.9 当天及更早）只写了 bot 布尔值，没有 botName/botKind。
+            // 明细里保留了 UA，所以这里现算一次就能补齐标识，不用等新数据攒够才有图看。
+            String botName = nz(e.getBotName());
+            if (botName.isEmpty()) {
+                botName = nz(UserAgentParser.botName(e.getUa()), "未知爬虫");
+            }
+            String botKind = nz(e.getBotKind());
+            if (botKind.isEmpty()) {
+                botKind = nz(UserAgentParser.botKind(e.getUa()), "other");
+            }
+            bump(botNames, botName);
+            bump(botKinds, botKind);
+            if (!botNameKind.containsKey(botName)) {
+                botNameKind.put(botName, botKind);
+            }
+        }
+
         private String classify(String ref) {
             String host = hostOfRef(ref).toLowerCase();
             if (host.startsWith("www.")) {
@@ -516,6 +625,8 @@ public class VisitStatServiceImpl implements VisitStatService {
                     : Math.round(pvEvents * 100.0 / sessions) / 100.0);
             summary.put("newVisitors", newV);
             summary.put("returningVisitors", retV);
+            // 被剔除的爬虫 PV：与 summary.pv 是两个互斥的口径，不要相加
+            summary.put("botPv", botPv);
             out.put("summary", summary);
 
             out.put("trend", trend());
@@ -527,6 +638,7 @@ public class VisitStatServiceImpl implements VisitStatService {
             out.put("browsers", distributions(browsers, true));
             out.put("systems", distributions(systems, true));
             out.put("durations", durationBuckets());
+            out.put("bots", bots());
             out.put("health", health());
 
             // 兼容旧字段
@@ -664,12 +776,80 @@ public class VisitStatServiceImpl implements VisitStatService {
             return list;
         }
 
+        /** 爬虫与自动化：单独一套口径，字段结构与主口径同形，前端可复用同一批图表构造 */
+        private Map<String, Object> bots() {
+            Map<String, Object> m = new LinkedHashMap<String, Object>();
+            m.put("pv", botPv);
+            m.put("uv", botIps.size());
+            // 分母是「网页统计能看到的全部页面浏览」= 人的 PV + 爬虫 PV，
+            // 用来回答「我看到的流量里有多少是机器」。真正的不跑 JS 的爬虫不在这里，见前端提示。
+            long visible = pvEvents + botPv;
+            m.put("ratio", visible <= 0 ? 0 : Math.round(botPv * 1000.0 / visible) / 10.0);
+            m.put("names", botNameList());
+            m.put("kinds", distributions(botKinds, true));
+            m.put("pages", botPageList());
+            m.put("trend", botTrend());
+            return m;
+        }
+
+        /** 爬虫标识排行，附带类别，表格可直接显示「Googlebot / 搜索引擎」 */
+        private List<Map<String, Object>> botNameList() {
+            List<Map<String, Object>> list = distributions(botNames, true);
+            for (Map<String, Object> m : list) {
+                Object n = m.get("name");
+                m.put("kind", n == null ? "other" : nz(botNameKind.get(n.toString()), "other"));
+            }
+            return list;
+        }
+
+        /** 被抓页面 TOP 20；结构与 distributions 一致（name/value/pct），前端无需分支处理 */
+        private List<Map<String, Object>> botPageList() {
+            List<Map.Entry<String, PathAgg>> es =
+                    new ArrayList<Map.Entry<String, PathAgg>>(botPaths.entrySet());
+            Collections.sort(es, new Comparator<Map.Entry<String, PathAgg>>() {
+                @Override
+                public int compare(Map.Entry<String, PathAgg> a, Map.Entry<String, PathAgg> b) {
+                    int c = Long.compare(b.getValue().pv, a.getValue().pv);
+                    return c != 0 ? c : a.getKey().compareTo(b.getKey());
+                }
+            });
+            List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+            int limit = Math.min(20, es.size());
+            for (int i = 0; i < limit; i++) {
+                Map.Entry<String, PathAgg> en = es.get(i);
+                PathAgg a = en.getValue();
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
+                m.put("name", en.getKey());
+                m.put("value", a.pv);
+                m.put("pct", botPv <= 0 ? 0 : Math.round(a.pv * 1000.0 / botPv) / 10.0);
+                m.put("uv", a.ips.size());
+                list.add(m);
+            }
+            return list;
+        }
+
+        /** 爬虫按天趋势：补齐区间内每一天，缺失补 0，避免折线被"跳过"看起来像没抓 */
+        private List<Map<String, Object>> botTrend() {
+            List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+            for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+                String key = d.toString();
+                DayAgg a = botDays.get(key);
+                Map<String, Object> m = new LinkedHashMap<String, Object>();
+                m.put("date", key);
+                m.put("pv", a == null ? 0 : a.pv);
+                m.put("uv", a == null ? 0 : a.ips.size());
+                list.add(m);
+            }
+            return list;
+        }
+
         private Map<String, Object> health() {
             Map<String, Object> m = new LinkedHashMap<String, Object>();
             m.put("events", events);
             m.put("pvEvents", pvEvents);
             m.put("leaveEvents", leaveEvents);
             m.put("bot", botEvents);
+            m.put("botPv", botPv);
             m.put("internal", internalEvents);
             m.put("truncated", truncated);
             m.put("logDays", days.size());

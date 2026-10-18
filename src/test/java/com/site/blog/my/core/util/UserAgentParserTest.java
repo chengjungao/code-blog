@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -40,6 +41,47 @@ class UserAgentParserTest {
         assertTrue(UserAgentParser.isBot(""));
         assertTrue(UserAgentParser.isBot(null));
         assertFalse(UserAgentParser.isBot(CHROME_WIN));
+    }
+
+    @Test
+    void 爬虫标识与类别() {
+        String googlebot = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+        assertEquals("Googlebot", UserAgentParser.botName(googlebot));
+        assertEquals("search", UserAgentParser.botKind(googlebot));
+
+        // Bytespider 里含 spider，必须先被具体规则认领，不能落到「未知爬虫」
+        String bytespider = "Mozilla/5.0 (Linux; Android 5.0) AppleWebKit/537.36 "
+                + "Chrome/70.0.3538.80 Mobile Safari/537.36; Bytespider";
+        assertEquals("Bytespider", UserAgentParser.botName(bytespider));
+        assertEquals("search", UserAgentParser.botKind(bytespider));
+
+        String gptbot = "Mozilla/5.0 AppleWebKit/537.36; compatible; GPTBot/1.2";
+        assertEquals("GPTBot", UserAgentParser.botName(gptbot));
+        assertEquals("ai", UserAgentParser.botKind(gptbot), "AI 抓取要能与搜索引擎区分开");
+
+        String headless = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                + "HeadlessChrome/140.0.0.0 Safari/537.36";
+        assertEquals("HeadlessChrome", UserAgentParser.botName(headless));
+        assertEquals("automation", UserAgentParser.botKind(headless));
+
+        assertEquals("Python-requests", UserAgentParser.botName("python-requests/2.31.0"));
+        assertEquals("script", UserAgentParser.botKind("python-requests/2.31.0"));
+        assertEquals("curl", UserAgentParser.botName("curl/8.4.0"));
+        assertEquals("SemrushBot", UserAgentParser.botName("Mozilla/5.0 (compatible; SemrushBot/7~bl)"));
+        assertEquals("seo", UserAgentParser.botKind("Mozilla/5.0 (compatible; SemrushBot/7~bl)"));
+
+        // 空 UA 不是"未知"，而是一个明确事实：连 UA 都不发
+        assertEquals("（空 UA）", UserAgentParser.botName(""));
+        assertEquals("empty", UserAgentParser.botKind(null));
+
+        // 泛化兜底：认得是机器，但说不出名字——不能因此当成真人放过去
+        assertEquals("未知爬虫", UserAgentParser.botName("WeirdCrawlerTest/1.0 some-bot"));
+        assertEquals("other", UserAgentParser.botKind("WeirdCrawlerTest/1.0 some-bot"));
+
+        // 真实访客一个都不能被贴标识
+        assertNull(UserAgentParser.botName(CHROME_WIN));
+        assertNull(UserAgentParser.botKind(EDGE_WIN));
+        assertNull(UserAgentParser.botName(WECHAT_IOS));
     }
 
     @Test

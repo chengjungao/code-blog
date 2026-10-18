@@ -146,6 +146,37 @@ class PageStatLogServiceImplTest {
     }
 
     @Test
+    void 停留事件只进明细不进内存计数() {
+        PageStatLogServiceImpl s = newService(2000);
+        try {
+            s.start();
+            assertTrue(s.offer(event("/portfolio", "1.2.3.4")));
+
+            PageStatEvent leave = event("/portfolio", "5.6.7.8");
+            leave.setType("leave");
+            leave.setDur(12L);
+            leave.setEntry(false);
+            assertTrue(s.offer(leave));
+
+            waitFor("2 条写完", () -> (Long) s.health().get("written") >= 2L);
+
+            // 回归护栏：leave 曾经也被喂给 counters，导致 tb_page_stat 的 PV 比明细多出 30%~80%
+            // （线上实测 10-18：DB 44 vs 明细 23），两套口径永远对不上
+            Map<String, Object> snap = countersOf(s);
+            assertEquals(1L, snap.get("pv"), "停留事件不是页面浏览，不能计入 PV");
+            assertEquals(1, snap.get("uv"), "更不能把 leave 的 IP 当成新访客");
+
+            List<PageStatEvent> back = new ArrayList<PageStatEvent>();
+            s.forEachEvent(LocalDate.now(), LocalDate.now(), back::add);
+            assertEquals(2, back.size(), "明细里必须保留 leave（停留时长靠它算）");
+            assertEquals("leave", back.get(1).getType());
+            assertEquals(12L, back.get(1).getDur());
+        } finally {
+            s.stop();
+        }
+    }
+
+    @Test
     void 队列满时丢弃而不是阻塞请求线程() {
         PageStatLogServiceImpl s = newService(100);
         s.start();
