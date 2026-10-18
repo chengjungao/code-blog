@@ -279,7 +279,10 @@ const pctOf = (pv) => Math.round((Number(pv || 0) / maxPv.value) * 1000) / 10
 
 // ---------- 概览卡片 ----------
 const summaryCards = computed(() => [
-  { label: '浏览量 PV', value: fmtNum(summary.value.pv), hint: '不含爬虫与内网' },
+  { label: '浏览量 PV', value: fmtNum(summary.value.pv),
+    hint: summary.value.pvLog == null
+      ? '不含爬虫与内网'
+      : `明细 ${fmtNum(summary.value.pvLog)} + DB 汇总 ${fmtNum(Number(summary.value.pv || 0) - Number(summary.value.pvLog || 0))}` },
   { label: '独立访客 UV', value: fmtNum(summary.value.uv), hint: '按 IP 去重' },
   { label: '会话数', value: fmtNum(summary.value.sessions), hint: '30 分钟无操作即新会话' },
   { label: '平均停留', value: fmtDur(summary.value.avgDuration), hint: `${summary.value.durationSamples || 0} 次采样` },

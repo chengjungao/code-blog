@@ -130,7 +130,8 @@ class VisitStatReportTest {
 
         // ---- summary ----
         Map<String, Object> s = (Map<String, Object>) r.get("summary");
-        assertEquals(5L, s.get("pv"), "leave 事件不算 PV");
+        // summary.pv 是「明细 + DB 回退」的合并总量；leave 事件不算 PV 这一点看 pvLog
+        assertEquals(5L, s.get("pvLog"), "leave 事件不算 PV（纯明细口径）");
         assertEquals(3, s.get("uv"), "按 IP 去重");
         assertEquals(3, s.get("sessions"), "3 个会话");
         assertEquals(4L, s.get("entries"), "4 次落地");
@@ -201,6 +202,12 @@ class VisitStatReportTest {
         Map<String, Object> total = (Map<String, Object>) r.get("total");
         assertEquals(10L, total.get("pv"), "明细 5 + DB 回退 5");
         assertEquals(3, total.get("uv"));
+
+        // 回归护栏：报表卡片读的是 summary.pv，不是 total.pv。
+        // 曾经只更新 total，导致「明细上线前」的 PV 在卡片上完全看不到（线上少算 95%）。
+        Map<String, Object> summary = (Map<String, Object>) r.get("summary");
+        assertEquals(10L, summary.get("pv"), "summary.pv 必须包含 DB 回退的量");
+        assertEquals(5L, summary.get("pvLog"), "pvLog 保留纯明细口径，便于自证");
 
         assertNotNull(r.get("range"));
         assertNotNull(r.get("realtime"));

@@ -219,7 +219,13 @@ public class VisitStatServiceImpl implements VisitStatService {
         @SuppressWarnings("unchecked")
         Map<String, Object> total = (Map<String, Object>) report.get("total");
         // PV 可以直接相加：回退的都是「完全没有明细」的天，不存在重复计数
-        total.put("pv", asLong(summary.get("pv")) + dbPv);
+        long logPv = asLong(summary.get("pv"));
+        long mergedPv = logPv + dbPv;
+        // 报表卡片读的是 summary.pv（不是 total.pv）⇒ 合并结果必须写回 summary，
+        // 否则「明细上线前」那几天的 PV 只落在 total 里，卡片上永远看不到（实测少算 95%）
+        summary.put("pvLog", logPv);
+        summary.put("pv", mergedPv);
+        total.put("pv", mergedPv);
         // UV 不能相加——两套源的去重集合不同，相加必然虚高；总量只报明细口径，
         // 回退天数的粗略 UV 已经在趋势点里按 src=db 单独标出来了
         total.put("uv", summary.get("uv"));
