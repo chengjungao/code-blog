@@ -103,8 +103,10 @@ public class BlogApiController {
      */
     @GetMapping("/blog/{blogId}")
     public Result detail(@PathVariable("blogId") Long blogId,
-                         @RequestParam(value = "commentPage", required = false, defaultValue = "1") Integer commentPage) {
-        BlogDetailVO blogDetailVO = blogService.getBlogDetail(blogId);
+                         @RequestParam(value = "commentPage", required = false, defaultValue = "1") Integer commentPage,
+                         HttpServletRequest request) {
+        // 只有真实浏览器的一次请求才计浏览量：爬虫（含预渲染）与内网调用一律不计
+        BlogDetailVO blogDetailVO = blogService.getBlogDetail(blogId, ViewCountGuard.shouldCount(request));
         Map<String, Object> data = new HashMap<>();
         data.put("blog", blogDetailVO);
         if (blogDetailVO != null) {
@@ -117,8 +119,8 @@ public class BlogApiController {
      * 根据 subUrl 获取文章（关于页等）
      */
     @GetMapping("/page/{subUrl}")
-    public Result pageBySubUrl(@PathVariable("subUrl") String subUrl) {
-        BlogDetailVO blogDetailVO = blogService.getBlogDetailBySubUrl(subUrl);
+    public Result pageBySubUrl(@PathVariable("subUrl") String subUrl, HttpServletRequest request) {
+        BlogDetailVO blogDetailVO = blogService.getBlogDetailBySubUrl(subUrl, ViewCountGuard.shouldCount(request));
         return ResultGenerator.genSuccessResult(blogDetailVO);
     }
 

@@ -296,9 +296,14 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     public BlogDetailVO getBlogDetail(Long id) {
+        return getBlogDetail(id, true);
+    }
+
+    @Override
+    public BlogDetailVO getBlogDetail(Long id, boolean countView) {
         Blog blog = blogMapper.selectByPrimaryKey(id);
         //不为空且状态为已发布
-        BlogDetailVO blogDetailVO = getBlogDetailVO(blog,true);
+        BlogDetailVO blogDetailVO = getBlogDetailVO(blog, true, countView);
         if (blogDetailVO != null) {
             return blogDetailVO;
         }
@@ -385,9 +390,14 @@ public class BlogServiceImpl implements BlogService {
 
     @Override
     public BlogDetailVO getBlogDetailBySubUrl(String subUrl) {
+        return getBlogDetailBySubUrl(subUrl, true);
+    }
+
+    @Override
+    public BlogDetailVO getBlogDetailBySubUrl(String subUrl, boolean countView) {
         Blog blog = blogMapper.selectBySubUrl(subUrl);
         //不为空且状态为已发布
-        BlogDetailVO blogDetailVO = getBlogDetailVO(blog,false);
+        BlogDetailVO blogDetailVO = getBlogDetailVO(blog, false, countView);
         if (blogDetailVO != null) {
             return blogDetailVO;
         }
@@ -397,16 +407,21 @@ public class BlogServiceImpl implements BlogService {
     /**
      * 方法抽取
      *
-     * @param blog
+     * @param blog      文章
+     * @param filter    是否过滤未发布
+     * @param countView 是否计一次浏览量。路径合法性校验、预渲染、爬虫等非阅读场景必须传 false，
+     *                  否则一次阅读会被多处各加一次（历史 bug，见 {@code ViewCountGuard}）
      * @return
      */
-    private BlogDetailVO getBlogDetailVO(Blog blog,Boolean filter) {
+    private BlogDetailVO getBlogDetailVO(Blog blog, Boolean filter, boolean countView) {
 	        if (blog == null || (filter && blog.getBlogStatus() != 1)) {
 	        	return null;
 	        }
-            //增加浏览量（原子更新，避免并发问题）
-            blogMapper.incrementBlogViews(blog.getBlogId());
-            blog.setBlogViews(blog.getBlogViews() + 1);
+            if (countView) {
+                //增加浏览量（原子更新，避免并发问题）
+                blogMapper.incrementBlogViews(blog.getBlogId());
+                blog.setBlogViews(blog.getBlogViews() + 1);
+            }
             BlogDetailVO blogDetailVO = new BlogDetailVO();
             BeanUtils.copyProperties(blog, blogDetailVO);
             // 前端已用 markdown-it 渲染（含代码高亮/mermaid），后端直接返回原始 markdown，避免双重渲染

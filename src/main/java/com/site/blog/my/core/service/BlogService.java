@@ -67,6 +67,14 @@ public interface BlogService {
     BlogDetailVO getBlogDetail(Long blogId);
 
     /**
+     * 文章详情（可控制是否计一次浏览量）
+     *
+     * @param blogId    文章 id
+     * @param countView true 表示本次调用计一次浏览；抓取/校验类调用应传 false
+     */
+    BlogDetailVO getBlogDetail(Long blogId, boolean countView);
+
+    /**
      * 根据标签获取文章列表
      *
      * @param tagName
@@ -106,4 +114,12 @@ public interface BlogService {
     PageResult getBlogsPageBySearch(String keyword, int page);
 
     BlogDetailVO getBlogDetailBySubUrl(String subUrl);
+
+    /**
+     * 根据 subUrl 获取文章（可控制是否计一次浏览量）
+     *
+     * @param subUrl    自定义路径
+     * @param countView true 表示本次调用计一次浏览；路径校验、预渲染等应传 false
+     */
+    BlogDetailVO getBlogDetailBySubUrl(String subUrl, boolean countView);
 }

@@ -123,8 +123,10 @@ public class PathValidationController {
         }
 
         // 9. 检查是否为自定义路径（查询数据库）
+        // 注意：这里只是 nginx auth_request 的路径合法性校验，不是一次阅读，必须 countView=false，
+        // 否则每次页面请求（且 try_files 内部重定向会再触发一次）都会给文章浏览量 +1
         String subUrl = path.startsWith("/") ? path.substring(1) : path;
-        Object blogResult = blogService.getBlogDetailBySubUrl(subUrl);
+        Object blogResult = blogService.getBlogDetailBySubUrl(subUrl, false);
         if (blogResult != null) {
             return ResponseEntity.ok().build();
         }
