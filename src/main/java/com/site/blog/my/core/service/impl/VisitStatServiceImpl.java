@@ -353,6 +353,20 @@ public class VisitStatServiceImpl implements VisitStatService {
         private final Map<String, PathAgg> paths = new HashMap<String, PathAgg>();
         private final long[] hourlyPv = new long[24];
         private final Map<Integer, Set<String>> hourlyUv = new HashMap<Integer, Set<String>>();
+        /**
+         * 单日分时：日期 → 24 桶 PV/UV。
+         *
+         * <p>与上面的 {@code hourlyPv} 是两种口径，不能混用：
+         * {@code hourlyPv} 是<b>区间内所有天同一小时</b>的累加（服务「时段分布」，
+         * 回答「访客习惯几点来」）；{@code dayHourPv} 是<b>某一天内部的 24 小时</b>
+         * （服务「访问趋势 → 按小时」，回答「这一天怎么分布」）。
+         * 2026-10-20 之前两者共用一个数组，导致「按小时」把 14 天压成 24 桶，
+         * 与「按天」的当日值天然对不上。
+         */
+        private final Map<String, long[]> dayHourPv = new TreeMap<String, long[]>();
+        private final Map<String, Map<Integer, Set<String>>> dayHourUv =
+                new TreeMap<String, Map<Integer, Set<String>>>();
+
         private final Map<String, Long> sourcePv = new HashMap<String, Long>();
         private final Map<String, Long> sourceHostPv = new HashMap<String, Long>();
         private final Map<String, Long> devices = new HashMap<String, Long>();
@@ -475,6 +489,26 @@ public class VisitStatServiceImpl implements VisitStatService {
                 }
                 if (hu.size() < MAX_KEYS) {
                     hu.add(ip);
+                }
+                // 同一次事件再进「单日分时」自己的桶，供按小时趋势用
+                long[] dh = dayHourPv.get(day);
+                if (dh == null) {
+                    dh = new long[24];
+                    dayHourPv.put(day, dh);
+                }
+                dh[hour]++;
+                Map<Integer, Set<String>> duMap = dayHourUv.get(day);
+                if (duMap == null) {
+                    duMap = new HashMap<Integer, Set<String>>();
+                    dayHourUv.put(day, duMap);
+                }
+                Set<String> du = duMap.get(hour);
+                if (du == null) {
+                    du = new HashSet<String>();
+                    duMap.put(hour, du);
+                }
+                if (du.size() < MAX_KEYS) {
+                    du.add(ip);
                 }
             }
 
@@ -631,6 +665,7 @@ public class VisitStatServiceImpl implements VisitStatService {
 
             out.put("trend", trend());
             out.put("hourly", hourly());
+            out.put("hourlyDays", hourlyDays());
             out.put("pages", pages());
             out.put("sources", distributions(sourcePv, false));
             out.put("sourceHosts", distributions(sourceHostPv, true));
@@ -703,6 +738,47 @@ public class VisitStatServiceImpl implements VisitStatService {
                 Set<String> s = hourlyUv.get(h);
                 m.put("uv", s == null ? 0 : s.size());
                 list.add(m);
+            }
+            return list;
+        }
+
+        /**
+         * 单日分时：每个「有明细的日期」各给一份 24 小时分桶。
+         *
+         * <p>「按小时」看的必须是某一天内部的分布，否则 14 天会被压成 24 桶，
+         * 与「按天」的当日值对不上。只有走明细的日期才有分时数据（DB 兜底的历史日期
+         * 只存了日汇总，无法还原到小时），前端据此只列这些日期。
+         *
+         * <p>每份还带当日 {@code pv}/{@code uv}，方便与「按天」点位的数值直接核对；
+         * 注意 24 个桶的 UV 之和 ≥ 当日 UV，因为同一访客跨小时会被各算一次。
+         */
+        private List<Map<String, Object>> hourlyDays() {
+            List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+            for (Map.Entry<String, long[]> en : dayHourPv.entrySet()) {
+                String date = en.getKey();
+                long[] pv = en.getValue();
+                Map<Integer, Set<String>> uvMap = dayHourUv.get(date);
+                List<Map<String, Object>> hours = new ArrayList<Map<String, Object>>(24);
+                for (int h = 0; h < 24; h++) {
+                    Map<String, Object> m = new LinkedHashMap<String, Object>();
+                    m.put("hour", h);
+                    m.put("name", String.format("%02d:00", h));
+                    m.put("pv", pv[h]);
+                    Set<String> s = uvMap == null ? null : uvMap.get(h);
+                    m.put("uv", s == null ? 0 : s.size());
+                    hours.add(m);
+                }
+                Map<String, Object> day = new LinkedHashMap<String, Object>();
+                day.put("date", date);
+                DayAgg a = days.get(date);
+                long dayPv = 0;
+                for (int h = 0; h < 24; h++) {
+                    dayPv += pv[h];
+                }
+                day.put("pv", a != null ? a.pv : dayPv);
+                day.put("uv", a != null ? a.ips.size() : 0);
+                day.put("hours", hours);
+                list.add(day);
             }
             return list;
         }

@@ -42,6 +42,16 @@
               <el-radio-button value="day">按天</el-radio-button>
               <el-radio-button value="hour">按小时</el-radio-button>
             </el-radio-group>
+            <!-- 按小时看的是「某一天内部的 24 小时」，所以必须选日期；不选就是跨天叠加，与按天对不上 -->
+            <el-select
+              v-if="gran === 'hour'"
+              v-model="hourDate"
+              size="small"
+              class="hour-date"
+              placeholder="选择日期"
+            >
+              <el-option v-for="d in hourlyDays" :key="d.date" :label="d.date" :value="d.date" />
+            </el-select>
             <el-radio-group v-model="trendType" size="small">
               <el-radio-button value="line">折线</el-radio-button>
               <el-radio-button value="area">面积</el-radio-button>
@@ -52,7 +62,11 @@
         </div>
       </template>
       <BaseChart v-if="trendData.length" :option="trendOption" :height="300" />
-      <el-empty v-else description="暂无数据" :image-size="80" />
+      <el-empty v-else :description="gran === 'hour' ? '该维度暂无分时明细（只有走明细的日期才有小时数据）' : '暂无数据'" :image-size="80" />
+      <div v-if="gran === 'hour' && hourDay" class="hour-note">
+        {{ hourDay.date }} 当日合计 <b>PV {{ hourDay.pv }}</b> · <b>UV {{ hourDay.uv }}</b>
+        ，与「按天」的点位同一口径；下方 24 个点的小时 UV 之和会偏大，因为同一访客跨小时会各计一次。
+      </div>
     </el-card>
 
     <el-row :gutter="12">
@@ -61,7 +75,7 @@
         <el-card shadow="never" class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>时段分布（24 小时）</span>
+              <span>时段分布（区间内同小时累计）</span>
               <el-radio-group v-model="hourType" size="small">
                 <el-radio-button value="bar">柱状</el-radio-button>
                 <el-radio-button value="line">折线</el-radio-button>
@@ -282,7 +296,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import BaseChart from '../components/BaseChart.vue'
 import { getStatReport } from '../api/admin'
 
@@ -320,6 +334,25 @@ const BOT_KINDS = {
 
 const trend = computed(() => report.value.trend || [])
 const hourly = computed(() => report.value.hourly || [])
+/** 单日分时：只含有明细的日期，每项带 hours[24] 与当日合计 */
+const hourlyDays = computed(() => report.value.hourlyDays || [])
+const hourDate = ref('')
+const hourDay = computed(
+  () => hourlyDays.value.find((d) => d.date === hourDate.value) || hourlyDays.value[hourlyDays.value.length - 1] || null
+)
+const hourSeries = computed(() => hourDay.value?.hours || [])
+// 默认停在最新一天；换统计区间后若原选中日不在新列表里也回落到最新
+watch(
+  hourlyDays,
+  (list) => {
+    if (!list.length) {
+      hourDate.value = ''
+      return
+    }
+    if (!list.some((d) => d.date === hourDate.value)) hourDate.value = list[list.length - 1].date
+  },
+  { immediate: true }
+)
 const pages = computed(() => report.value.pages || [])
 const sources = computed(() => report.value.sources || [])
 const durations = computed(() => report.value.durations || [])
@@ -467,8 +500,8 @@ function distOption(list, kind) {
   return cartesian(cats, [mkSeries('数量', vals, 'bar', PALETTE[0])])
 }
 
-// 访问趋势
-const trendData = computed(() => (gran.value === 'day' ? trend.value : hourly.value))
+// 访问趋势：按天 = 每天一点；按小时 = 选中那一天内部的 24 点（不是跨天叠加）
+const trendData = computed(() => (gran.value === 'day' ? trend.value : hourSeries.value))
 const trendOption = computed(() => {
   const isHour = gran.value === 'hour'
   const cats = trendData.value.map((d) => (isHour ? d.name : shortDay(d.date)))
@@ -636,6 +669,19 @@ onMounted(reload)
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+/* 按小时必须选定某一天，否则 14 天会被压成 24 桶 */
+.hour-date {
+  width: 128px;
+}
+.hour-note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8a9a90;
+  line-height: 1.6;
+}
+.hour-note b {
+  color: #0f766e;
 }
 
 .page-table {

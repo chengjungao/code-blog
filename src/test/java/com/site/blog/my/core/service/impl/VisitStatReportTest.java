@@ -395,4 +395,53 @@ class VisitStatReportTest {
         Map<String, Object> h = (Map<String, Object>) r.get("health");
         assertEquals(4L, h.get("botPv"));
     }
+
+    /**
+     * 「按小时」必须是单日分时，不能把区间内所有天同一小时叠在一起。
+     *
+     * <p>回归自 2026-10-20 的线上疑问：14 天区间下「按小时」把 14 天压成 24 桶，
+     * 与「按天」的当日值对不上（当日 55 PV，图上 21 点显示 52）。这里锁住两件事：
+     * ① {@code hourlyDays} 每个日期一份 24 桶，当日合计与 trend 该日 PV 相等；
+     * ② 跨天叠加的 {@code hourly} 只服务「时段分布」，两者互不干扰。
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void 按小时是单日分时而不是跨天叠加() {
+        feed(
+                // DAY1 10 点两条、20 点一条
+                e(DAY1, "10", "pv", "/notes", "1.1.1.1", "A", "S1", true, "", null),
+                e(DAY1, "10", "pv", "/notes/1", "2.2.2.2", "B", "S2", false, "", null),
+                e(DAY1, "20", "pv", "/life", "1.1.1.1", "A", "S1", false, "", null),
+                // DAY2 10 点一条
+                e(DAY2, "10", "pv", "/notes", "3.3.3.3", "C", "S3", true, "", null));
+
+        Map<String, Object> r = svc.getStatReport(DAY1, DAY3);
+
+        // 跨天同小时累计：10 点 = DAY1 两条 + DAY2 一条 = 3
+        List<Map<String, Object>> hourly = list(r, "hourly");
+        assertEquals(3L, findValue(hourly, "name", "10:00", "pv"), "区间内 10 点累计（时段分布口径）");
+
+        List<Map<String, Object>> hourlyDays = list(r, "hourlyDays");
+        assertEquals(2, hourlyDays.size(), "只列有明细的日期；DB 兜底的 DAY3 没有分时数据");
+
+        Map<String, Object> d1 = hourlyDays.get(0);
+        assertEquals(DAY1, d1.get("date"));
+        assertEquals(3L, d1.get("pv"), "DAY1 当日合计 = 10 点两条 + 20 点一条");
+        List<Map<String, Object>> h1 = (List<Map<String, Object>>) d1.get("hours");
+        assertEquals(24, h1.size(), "每天固定 24 桶，缺的小时补 0");
+        assertEquals(2L, findValue(h1, "name", "10:00", "pv"));
+        assertEquals(1L, findValue(h1, "name", "20:00", "pv"));
+        assertEquals(0L, findValue(h1, "name", "03:00", "pv"));
+
+        Map<String, Object> d2 = hourlyDays.get(1);
+        assertEquals(DAY2, d2.get("date"));
+        List<Map<String, Object>> h2 = (List<Map<String, Object>>) d2.get("hours");
+        assertEquals(1L, findValue(h2, "name", "10:00", "pv"), "DAY2 的 10 点只有 1 条，不能把 DAY1 的算进来");
+        assertEquals(0L, findValue(h2, "name", "20:00", "pv"));
+
+        // 核心诉求：按小时的当日合计必须与「按天」的点位一致
+        List<Map<String, Object>> trend = list(r, "trend");
+        assertEquals(trend.get(0).get("pv"), d1.get("pv"));
+        assertEquals(trend.get(1).get("pv"), d2.get("pv"));
+    }
 }
